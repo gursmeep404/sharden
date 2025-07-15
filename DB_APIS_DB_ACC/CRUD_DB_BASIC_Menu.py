@@ -15,7 +15,7 @@ AES_KEY = os.getenv("AES_KEY")
 AES_KEY = AES_KEY.encode("utf-8")
 MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
-COLLECTION_NAME = os.getenv("COLLECTION_NAME")
+COLLECTION_NAME = os.getenv("COLLECTION_NAME_Accounts")
 # ===================== CONNECT =====================
 client = MongoClient(MONGO_URI)
 db = client[DB_NAME]
@@ -106,10 +106,8 @@ def modify_account():
     field = input("Enter field to modify (Acc_Holder_name / Balance / PAN_no / Phone_no / email): ")
     new_val = input("Enter new value: ")
 
-    if field in ["Acc_Holder_name", "PAN_no", "Phone_no", "email"]:
+    if field in ["Acc_Holder_name", "PAN_no", "Phone_no", "email","Balance"]:
         new_val = encrypt_aes(new_val)
-    elif field == "Balance":
-        new_val = float(new_val)
     else:
         print("❌ Invalid field.")
         return
