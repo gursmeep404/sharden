@@ -110,7 +110,6 @@ def download(filename):
         download_name=download_name
     )
 
-
 @app.route('/revoke/<filename>', methods=['POST'])
 def revoke(filename):
     safe_name = secure_filename(filename)
@@ -119,15 +118,17 @@ def revoke(filename):
     if not os.path.exists(meta_path):
         return abort(404, "Metadata not found.")
 
+    # Load and update metadata
     with open(meta_path, 'r') as mf:
         metadata = json.load(mf)
-
     metadata["revoked"] = True
 
     with open(meta_path, 'w') as mf:
         json.dump(metadata, mf)
 
-    return f"Access to {filename} has been revoked."
+    return render_template("revoked.html", filename=safe_name)
+
+
 
 
 if __name__ == "__main__":
