@@ -4,7 +4,7 @@ from werkzeug.utils import secure_filename
 from utils.crypto import encrypt_file, decrypt_file
 from Crypto.Random import get_random_bytes
 import json, time
-from datetime import timedelta
+from datetime import datetime, timezone, timedelta
 
 
 
@@ -33,21 +33,30 @@ def upload():
     with open(enc_path, 'wb') as f:
         f.write(encrypted['nonce'] + encrypted['tag'] + encrypted['ciphertext'])
 
-    # Save key for demo
+    # Demo key save
     with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.key"), 'wb') as kf:
         kf.write(key)
 
-    # Save metadata
+    # Metadata
+    expiry_ts = time.time() + timedelta(minutes=2).total_seconds()  # 2‑min demo expiry
     metadata = {
         "recipient": recipient,
-        "expiry_time": time.time() + timedelta(minutes=2).total_seconds(),  
+        "expiry_time": expiry_ts,
         "revoked": False
     }
     meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.meta.json")
     with open(meta_path, 'w') as mf:
         json.dump(metadata, mf)
 
-    return render_template("success.html", filename=enc_name, expiry=metadata["expiry_time"])
+    # Human‑readable expiry string (local server time)
+    expiry_str = datetime.fromtimestamp(expiry_ts).strftime("%Y-%m-%d %H:%M:%S")
+
+    return render_template(
+        "success.html",
+        filename=enc_name,
+        expiry_ts=expiry_ts,
+        expiry_str=expiry_str
+    )
 
 @app.route('/download/<filename>', methods=['GET'])
 def download(filename):
