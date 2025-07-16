@@ -4,7 +4,12 @@ from werkzeug.utils import secure_filename
 from utils.crypto import encrypt_file, decrypt_file
 from Crypto.Random import get_random_bytes
 
+from flask_cors import CORS
+
 app = Flask(__name__)
+
+CORS(app)
+
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
