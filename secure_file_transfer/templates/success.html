@@ -8,11 +8,14 @@
 <body>
     <h2>File Encrypted Successfully!</h2>
     <p>Your encrypted file: <strong>{{ filename }}</strong></p>
+    <p>Expires at: <strong>{{ expiry | datetime }}</strong></p>
+
     <p>
-        <a href="/download/{{ filename }}" style="color: blue; font-weight: bold;">
-            Download & Decrypt File
-        </a>
+        <a href="/download/{{ filename }}" style="color: blue; font-weight: bold;">Download & Decrypt File</a>
     </p>
+    <form action="/revoke/{{ filename }}" method="post">
+        <button type="submit" style="background-color:red; color:white;">Revoke Access</button>
+    </form>
 </body>
 
 </html>
