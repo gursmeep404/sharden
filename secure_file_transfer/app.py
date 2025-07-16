@@ -6,6 +6,8 @@ from Crypto.Random import get_random_bytes
 import json, time
 from datetime import timedelta
 
+
+
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
@@ -51,9 +53,27 @@ def upload():
 def download(filename):
     safe_name = secure_filename(filename)
     enc_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.meta.json")
+    key_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.key")
+
+    # Check if files exist
     if not os.path.exists(enc_path):
         return abort(404, "Encrypted file not found.")
+    if not os.path.exists(meta_path):
+        return abort(404, "Metadata not found.")
+    if not os.path.exists(key_path):
+        return abort(400, "Encryption key missing (demo mode).")
 
+    # Load metadata and enforce policies
+    with open(meta_path, 'r') as mf:
+        metadata = json.load(mf)
+
+    if time.time() > metadata["expiry_time"]:
+        return abort(403, "Access denied: File expired.")
+    if metadata.get("revoked", False):
+        return abort(403, "Access denied: File revoked by owner.")
+
+    # Load encrypted content
     with open(enc_path, 'rb') as f:
         content = f.read()
 
@@ -61,25 +81,20 @@ def download(filename):
     tag = content[16:32]
     ciphertext = content[32:]
 
-    key_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.key")
-    if not os.path.exists(key_path):
-        return abort(400, "Encryption key missing (demo mode).")
-
+    # Load AES key
     with open(key_path, 'rb') as kf:
         key = kf.read()
 
+    # Decrypt
     try:
         decrypted = decrypt_file(ciphertext, key, nonce, tag)
     except Exception as e:
         return abort(400, f"Decryption failed: {e}")
 
-    # Infer original filename by stripping "enc_"
-    if safe_name.startswith("enc_"):
-        download_name = safe_name[len("enc_"):]
-    else:
-        download_name = f"dec_{safe_name}"
+    # Infer original filename
+    download_name = safe_name[len("enc_"):] if safe_name.startswith("enc_") else f"dec_{safe_name}"
 
-    # Send from memory
+    # Send decrypted file as download
     return send_file(
         io.BytesIO(decrypted),
         as_attachment=True,
