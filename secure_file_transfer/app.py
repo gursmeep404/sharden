@@ -3,6 +3,8 @@ import os, io
 from werkzeug.utils import secure_filename
 from utils.crypto import encrypt_file, decrypt_file
 from Crypto.Random import get_random_bytes
+import json, time
+from datetime import timedelta
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -11,7 +13,6 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 @app.route('/')
 def index():
     return render_template('upload.html')
-
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -34,7 +35,17 @@ def upload():
     with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.key"), 'wb') as kf:
         kf.write(key)
 
-    return render_template("success.html", filename=enc_name)
+    # Save metadata
+    metadata = {
+        "recipient": recipient,
+        "expiry_time": time.time() + timedelta(minutes=2).total_seconds(),  
+        "revoked": False
+    }
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.meta.json")
+    with open(meta_path, 'w') as mf:
+        json.dump(metadata, mf)
+
+    return render_template("success.html", filename=enc_name, expiry=metadata["expiry_time"])
 
 @app.route('/download/<filename>', methods=['GET'])
 def download(filename):
