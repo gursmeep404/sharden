@@ -101,5 +101,25 @@ def download(filename):
         download_name=download_name
     )
 
+
+@app.route('/revoke/<filename>', methods=['POST'])
+def revoke(filename):
+    safe_name = secure_filename(filename)
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.meta.json")
+
+    if not os.path.exists(meta_path):
+        return abort(404, "Metadata not found.")
+
+    with open(meta_path, 'r') as mf:
+        metadata = json.load(mf)
+
+    metadata["revoked"] = True
+
+    with open(meta_path, 'w') as mf:
+        json.dump(metadata, mf)
+
+    return f"Access to {filename} has been revoked."
+
+
 if __name__ == "__main__":
     app.run(debug=True)
