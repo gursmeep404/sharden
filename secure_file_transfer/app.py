@@ -12,34 +12,29 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 def index():
     return render_template('upload.html')
 
+
 @app.route('/upload', methods=['POST'])
 def upload():
     file = request.files['file']
-    recipient = request.form['recipient']  # not yet used; will go in metadata
+    recipient = request.form['recipient']
 
-    orig_name = secure_filename(file.filename)
-    path = os.path.join(app.config['UPLOAD_FOLDER'], orig_name)
+    filename = secure_filename(file.filename)
+    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
     file.save(path)
 
-    # Generate random AES key (128-bit)
     key = get_random_bytes(16)
-
     encrypted = encrypt_file(path, key)
 
-    enc_name = f"enc_{orig_name}"
+    enc_name = f"enc_{filename}"
     enc_path = os.path.join(app.config['UPLOAD_FOLDER'], enc_name)
     with open(enc_path, 'wb') as f:
         f.write(encrypted['nonce'] + encrypted['tag'] + encrypted['ciphertext'])
 
-    # Save key for demo ONLY (never do this in production)
-    key_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.key")
-    with open(key_path, 'wb') as kf:
+    # Save key for demo
+    with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.key"), 'wb') as kf:
         kf.write(key)
 
-    return (
-        f"File encrypted and saved as {enc_path}. "
-        f"Download: /download/{enc_name}"
-    )
+    return render_template("success.html", filename=enc_name)
 
 @app.route('/download/<filename>', methods=['GET'])
 def download(filename):
