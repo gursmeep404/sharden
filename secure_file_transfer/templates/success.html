@@ -8,14 +8,36 @@
 <body>
     <h2>File Encrypted Successfully!</h2>
     <p>Your encrypted file: <strong>{{ filename }}</strong></p>
-    <p>Expires at: <strong>{{ expiry | datetime }}</strong></p>
+    <p>Expires at: <strong>{{ expiry_str }}</strong></p>
+    <p>Time remaining: <span id="countdown"></span></p>
 
     <p>
-        <a href="/download/{{ filename }}" style="color: blue; font-weight: bold;">Download & Decrypt File</a>
+        <a href="/download/{{ filename }}">Download & Decrypt File</a>
     </p>
+
     <form action="/revoke/{{ filename }}" method="post">
-        <button type="submit" style="background-color:red; color:white;">Revoke Access</button>
+        <button type="submit" style="background-color:red; color:white;">
+            Revoke Access
+        </button>
     </form>
+
+   <script>
+    const expiryTs = Number("{{ expiry_ts }}") * 1000;
+    function updateCountdown() {
+        const now = Date.now();
+        let diff = Math.floor((expiryTs - now) / 1000);
+        if (diff <= 0) {
+            document.getElementById('countdown').textContent = "Expired";
+            return;
+        }
+        const m = Math.floor(diff / 60);
+        const s = diff % 60;
+        document.getElementById('countdown').textContent = m + "m " + s + "s";
+        requestAnimationFrame(updateCountdown);
+    }
+    updateCountdown();
+</script>
+
 </body>
 
 </html>
