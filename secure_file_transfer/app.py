@@ -1,135 +1,143 @@
-from flask import Flask, render_template, request, send_file, abort
-import os, io
+from flask import Flask, request, jsonify, send_file, abort
+import os, io, json, time, uuid, csv
 from werkzeug.utils import secure_filename
 from utils.crypto import encrypt_file, decrypt_file
 from Crypto.Random import get_random_bytes
-import json, time
-from datetime import datetime, timezone, timedelta
-
-
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-@app.route('/')
-def index():
-    return render_template('upload.html')
+AUDIT_LOG = os.path.join(app.config['UPLOAD_FOLDER'], "audit_log.csv")
 
-@app.route('/upload', methods=['POST'])
-def upload():
-    file = request.files['file']
-    recipient = request.form['recipient']
+# audit log if missing
+if not os.path.exists(AUDIT_LOG):
+    with open(AUDIT_LOG, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["timestamp", "action", "file_id", "status", "details"])
 
+def log_action(action, file_id, status, details=""):
+    with open(AUDIT_LOG, 'a', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow([int(time.time()), action, file_id, status, details])
+
+@app.route('/api/files', methods=['POST'])
+def upload_file():
+    file = request.files.get('file')
+    recipient = request.form.get('recipient')
+
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+
+    file_id = str(uuid.uuid4())
     filename = secure_filename(file.filename)
-    path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    file.save(path)
+    original_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    file.save(original_path)
 
+    # Encrypt file
     key = get_random_bytes(16)
-    encrypted = encrypt_file(path, key)
+    encrypted = encrypt_file(original_path, key)
 
-    enc_name = f"enc_{filename}"
+    enc_name = f"{file_id}.bin"
     enc_path = os.path.join(app.config['UPLOAD_FOLDER'], enc_name)
     with open(enc_path, 'wb') as f:
         f.write(encrypted['nonce'] + encrypted['tag'] + encrypted['ciphertext'])
 
-    # Demo key save
-    with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.key"), 'wb') as kf:
+
+    with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.key"), 'wb') as kf:
         kf.write(key)
 
     # Metadata
-    expiry_ts = time.time() + timedelta(minutes=2).total_seconds()  # 2‑min demo expiry
+    expiry_ts = int(time.time() + 300)  
     metadata = {
-        "recipient": recipient,
+        "file_id": file_id,
+        "original_filename": filename,
+        "encrypted_filename": enc_name,
         "expiry_time": expiry_ts,
-        "revoked": False
+        "revoked": False,
+        "recipient": recipient
     }
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{enc_name}.meta.json")
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.meta.json")
     with open(meta_path, 'w') as mf:
         json.dump(metadata, mf)
 
-    # Human‑readable expiry string (local server time)
-    expiry_str = datetime.fromtimestamp(expiry_ts).strftime("%Y-%m-%d %H:%M:%S")
+    log_action("UPLOAD", file_id, "SUCCESS", f"Uploaded by {recipient}")
+    return jsonify(metadata), 201
 
-    return render_template(
-        "success.html",
-        filename=enc_name,
-        expiry_ts=expiry_ts,
-        expiry_str=expiry_str
-    )
+@app.route('/api/files', methods=['GET'])
+def list_files():
+    files = []
+    for name in os.listdir(app.config['UPLOAD_FOLDER']):
+        if name.endswith(".meta.json"):
+            with open(os.path.join(app.config['UPLOAD_FOLDER'], name), 'r') as f:
+                meta = json.load(f)
+                files.append(meta)
+    return jsonify(files), 200
 
-@app.route('/download/<filename>', methods=['GET'])
-def download(filename):
-    safe_name = secure_filename(filename)
-    enc_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.meta.json")
-    key_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.key")
+@app.route('/api/files/<file_id>/download', methods=['GET'])
+def download_file(file_id):
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.meta.json")
+    enc_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.bin")
+    key_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.key")
 
-    # Check if files exist
-    if not os.path.exists(enc_path):
-        return abort(404, "Encrypted file not found.")
     if not os.path.exists(meta_path):
-        return abort(404, "Metadata not found.")
-    if not os.path.exists(key_path):
-        return abort(400, "Encryption key missing (demo mode).")
+        return jsonify({"error": "Metadata not found"}), 404
+    if not os.path.exists(enc_path) or not os.path.exists(key_path):
+        return jsonify({"error": "Encrypted file or key missing"}), 404
 
-    # Load metadata and enforce policies
     with open(meta_path, 'r') as mf:
         metadata = json.load(mf)
 
     if time.time() > metadata["expiry_time"]:
-        return abort(403, "Access denied: File expired.")
+        log_action("DOWNLOAD", file_id, "FAILED", "Expired")
+        return jsonify({"error": "Access denied: File expired"}), 403
     if metadata.get("revoked", False):
-        return abort(403, "Access denied: File revoked by owner.")
+        log_action("DOWNLOAD", file_id, "FAILED", "Revoked")
+        return jsonify({"error": "Access denied: File revoked"}), 403
 
-    # Load encrypted content
     with open(enc_path, 'rb') as f:
         content = f.read()
+    nonce, tag, ciphertext = content[:16], content[16:32], content[32:]
 
-    nonce = content[:16]
-    tag = content[16:32]
-    ciphertext = content[32:]
-
-    # Load AES key
     with open(key_path, 'rb') as kf:
         key = kf.read()
 
-    # Decrypt
     try:
         decrypted = decrypt_file(ciphertext, key, nonce, tag)
     except Exception as e:
-        return abort(400, f"Decryption failed: {e}")
+        log_action("DOWNLOAD", file_id, "FAILED", str(e))
+        return jsonify({"error": f"Decryption failed: {e}"}), 400
 
-    # Infer original filename
-    download_name = safe_name[len("enc_"):] if safe_name.startswith("enc_") else f"dec_{safe_name}"
+    download_name = metadata["original_filename"]
+    log_action("DOWNLOAD", file_id, "SUCCESS")
+    return send_file(io.BytesIO(decrypted), as_attachment=True, download_name=download_name)
 
-    # Send decrypted file as download
-    return send_file(
-        io.BytesIO(decrypted),
-        as_attachment=True,
-        download_name=download_name
-    )
-
-@app.route('/revoke/<filename>', methods=['POST'])
-def revoke(filename):
-    safe_name = secure_filename(filename)
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{safe_name}.meta.json")
-
+@app.route('/api/files/<file_id>/revoke', methods=['POST'])
+def revoke_file(file_id):
+    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.meta.json")
     if not os.path.exists(meta_path):
-        return abort(404, "Metadata not found.")
+        return jsonify({"error": "Metadata not found"}), 404
 
-    # Load and update metadata
     with open(meta_path, 'r') as mf:
         metadata = json.load(mf)
-    metadata["revoked"] = True
 
+    metadata["revoked"] = True
     with open(meta_path, 'w') as mf:
         json.dump(metadata, mf)
 
-    return render_template("revoked.html", filename=safe_name)
+    log_action("REVOKE", file_id, "SUCCESS")
+    return jsonify({"message": "File revoked successfully", "file_id": file_id}), 200
 
-
-
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    if not os.path.exists(AUDIT_LOG):
+        return jsonify([]), 200
+    logs = []
+    with open(AUDIT_LOG, 'r') as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            logs.append(row)
+    return jsonify(logs), 200
 
 if __name__ == "__main__":
     app.run(debug=True)
