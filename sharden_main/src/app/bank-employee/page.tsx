@@ -88,7 +88,7 @@ export default function BankEmployeeDashboard() {
                   Encrypt files for secure transfer to third-party vendors
                 </p>
                 <button className='mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors'>
-                  Encrypt Files
+                  <a href='/bank-employee/fencrypt'>Encrypt Files</a>
                 </button>
               </div>
             </div>

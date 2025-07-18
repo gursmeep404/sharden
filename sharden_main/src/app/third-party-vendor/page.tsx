@@ -27,7 +27,7 @@ export default function ThirdPartyVendorDashboard() {
                 <span className='text-2xl font-bold bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] bg-clip-text text-transparent'>
                   SHARDEN
                 </span>{' '}
-                - Bank Employee Portal
+                - Third-Party Vendor Portal
               </h1>
               <p className='text-sm text-gray-600'>
                 Welcome, {session?.user?.name} ({session?.user?.email})
@@ -46,7 +46,7 @@ export default function ThirdPartyVendorDashboard() {
       {/* Main Content */}
       <div className='max-w-7xl mx-auto py-6 sm:px-6 lg:px-8'>
         <div className='px-4 py-6 sm:px-0'>
-          <h2 className='text-3xl font-bold text-gray-900 mb-6'>
+          <h2 className='text-3xl font-bold text-white mb-6'>
             Third Party Vendor Dashboard
           </h2>
           <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6'>
@@ -59,7 +59,7 @@ export default function ThirdPartyVendorDashboard() {
                   Decrypt received files from banks
                 </p>
                 <button className='mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors'>
-                  Decrypt Files
+                  <a href='/third-party-vendor/decrypt'> Decrypt Files</a>
                 </button>
               </div>
             </div>
