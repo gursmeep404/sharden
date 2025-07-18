@@ -84,21 +84,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className='min-h-screen flex items-center justify-center bg-gray-50'>
-      <div className='max-w-md w-full space-y-8'>
-        <div>
-          <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-            SHARDEN - Secure File Transfer
+    <div className='w-full max-w-md mx-auto'>
+      <div className='bg-[hsl(220,30%,8%,0.8)] backdrop-blur-lg border border-[hsl(210,100%,50%,0.2)] rounded-2xl p-8 shadow-2xl'>
+        <div className='text-center mb-8'>
+          <h2 className='text-3xl font-bold bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] bg-clip-text text-transparent mb-2'>
+            SHARDEN
           </h2>
-          <p className='mt-2 text-center text-sm text-gray-600'>
-            Sign in to your account
-          </p>
+          <p className='text-[hsl(220,10%,60%)] text-sm'>Secure File Transfer</p>
+          <div className='w-12 h-1 bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] rounded-full mx-auto mt-3'></div>
         </div>
-        <form className='mt-8 space-y-6' onSubmit={handleSubmit}>
-          <div>
+        <form className='space-y-6' onSubmit={handleSubmit}>
+          <div className='space-y-2'>
             <label
               htmlFor='email'
-              className='block text-sm font-medium text-gray-700'
+              className='block text-sm font-medium text-[hsl(220,15%,95%)]'
             >
               Email address
             </label>
@@ -107,15 +106,16 @@ export default function LoginPage() {
               name='email'
               type='email'
               required
-              className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500'
+              className='w-full px-4 py-3 bg-[hsl(220,25%,12%,0.5)] border border-[hsl(210,100%,50%,0.3)] rounded-lg text-[hsl(220,15%,95%)] placeholder-[hsl(220,10%,60%)] focus:outline-none focus:ring-2 focus:ring-[hsl(210,100%,50%,0.5)] focus:border-[hsl(210,100%,50%)] transition-all duration-200'
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              placeholder='Enter your email'
             />
           </div>
-          <div>
+          <div className='space-y-2'>
             <label
               htmlFor='password'
-              className='block text-sm font-medium text-gray-700'
+              className='block text-sm font-medium text-[hsl(220,15%,95%)]'
             >
               Password
             </label>
@@ -124,27 +124,37 @@ export default function LoginPage() {
               name='password'
               type='password'
               required
-              className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500'
+              className='w-full px-4 py-3 bg-[hsl(220,25%,12%,0.5)] border border-[hsl(210,100%,50%,0.3)] rounded-lg text-[hsl(220,15%,95%)] placeholder-[hsl(220,10%,60%)] focus:outline-none focus:ring-2 focus:ring-[hsl(210,100%,50%,0.5)] focus:border-[hsl(210,100%,50%)] transition-all duration-200'
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              placeholder='Enter your password'
             />
           </div>
           {error && (
-            <div className='text-red-600 text-sm text-center'>{error}</div>
+            <div className='text-red-400 text-sm text-center bg-red-500/10 border border-red-500/20 rounded-lg p-3'>
+              {error}
+            </div>
           )}
           <button
             type='submit'
             disabled={loading}
-            className='w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50'
+            className='w-full py-3 px-6 bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] text-[hsl(220,30%,8%)] font-semibold rounded-lg shadow-lg hover:shadow-xl hover:scale-105 focus:outline-none focus:ring-2 focus:ring-[hsl(210,100%,50%,0.5)] disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200'
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading ? (
+              <span className='flex items-center justify-center space-x-2'>
+                <div className='w-4 h-4 border-2 border-[hsl(220,30%,8%,0.3)] border-t-[hsl(220,30%,8%)] rounded-full animate-spin'></div>
+                <span>Signing in...</span>
+              </span>
+            ) : (
+              'Sign in'
+            )}
           </button>
         </form>
 
         {/* Development helper - remove in production */}
         {process.env.NODE_ENV === 'development' && (
-          <div className='mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-md'>
-            <p className='text-xs text-yellow-800'>
+          <div className='mt-6 p-3 bg-[hsl(45,93%,47%,0.1)] border border-[hsl(45,93%,47%,0.2)] rounded-lg'>
+            <p className='text-xs text-[hsl(45,93%,47%)]'>
               <strong>Dev Mode:</strong> Expected roles: bank_employee,
               third_party_vendor, user
             </p>
