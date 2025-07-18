@@ -45,16 +45,19 @@ export default function BankEmployeeDashboard() {
   }
 
   return (
-    <div className='min-h-screen bg-gray-100'>
+    <div className='min-h-screen bg-gradient-background'>
       {/* Header */}
-      <div className='bg-white shadow'>
+      <div className='bg-[hsl(220,30%,8%)] shadow'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex justify-between items-center py-6'>
             <div>
-              <h1 className='text-2xl font-bold text-gray-900'>
-                SHARDEN - Bank Employee Portal
+              <h1 className='text-2xl font-bold text-[hsl(45,93%,47%)]'>
+                <span className='text-2xl font-bold bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] bg-clip-text text-transparent'>
+                  SHARDEN
+                </span>{' '}
+                - Bank Employee Portal
               </h1>
-              <p className='text-sm text-gray-600'>
+              <p className='text-sm text-white'>
                 Welcome, {session.user.name} ({session.user.email})
               </p>
             </div>
@@ -71,7 +74,7 @@ export default function BankEmployeeDashboard() {
       {/* Main Content */}
       <div className='max-w-7xl mx-auto py-6 sm:px-6 lg:px-8'>
         <div className='px-4 py-6 sm:px-0'>
-          <h2 className='text-3xl font-bold text-gray-900 mb-6'>
+          <h2 className='text-3xl font-bold text-white mb-6'>
             Bank Employee Dashboard
           </h2>
 

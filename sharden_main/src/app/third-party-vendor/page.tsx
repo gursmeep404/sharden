@@ -17,14 +17,17 @@ export default function ThirdPartyVendorDashboard() {
   if (status === 'loading') return <div>Loading...</div>;
 
   return (
-    <div className='min-h-screen bg-gray-100'>
+    <div className='min-h-screen bg-gradient-background'>
       {/* Header */}
-      <div className='bg-white shadow'>
+      <div className='bg-[hsl(220,30%,8%)] shadow'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
           <div className='flex justify-between items-center py-6'>
             <div>
-              <h1 className='text-2xl font-bold text-gray-900'>
-                SHARDEN - Third Party Vendor Portal
+              <h1 className='text-2xl font-bold text-[hsl(45,93%,47%)]'>
+                <span className='text-2xl font-bold bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] bg-clip-text text-transparent'>
+                  SHARDEN
+                </span>{' '}
+                - Bank Employee Portal
               </h1>
               <p className='text-sm text-gray-600'>
                 Welcome, {session?.user?.name} ({session?.user?.email})
