@@ -1,21 +1,187 @@
-@import "tailwindcss";
-
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+@import 'tailwindcss';
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  
+  /* Sharden custom colors */
+  --color-electric-blue: var(--electric-blue);
+  --color-deep-blue: var(--deep-blue);
+  --color-bright-yellow: var(--bright-yellow);
+  --color-yellow-glow: var(--yellow-glow);
+  --color-dark-surface: var(--dark-surface);
+  --color-glass-surface: var(--glass-surface);
+  
+  /* Background images */
+  --background-image-gradient-primary: var(--gradient-primary);
+  --background-image-gradient-background: var(--gradient-background);
+  --background-image-gradient-glass: var(--gradient-glass);
+  
+  /* Box shadows */
+  --box-shadow-electric: var(--shadow-electric);
+  --box-shadow-yellow: var(--shadow-yellow);
+  --box-shadow-glow-blue: var(--glow-blue);
+  --box-shadow-glow-yellow: var(--glow-yellow);
 }
 
+:root {
+  --background: 220 35% 6%;
+  --foreground: 220 15% 95%;
 
+  --card: 220 30% 8%;
+  --card-foreground: 220 15% 95%;
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  --popover: 220 30% 8%;
+  --popover-foreground: 220 15% 95%;
+
+  --primary: 45 93% 47%;
+  --primary-foreground: 220 35% 6%;
+
+  --secondary: 210 100% 45%;
+  --secondary-foreground: 220 15% 95%;
+
+  --muted: 220 25% 12%;
+  --muted-foreground: 220 10% 60%;
+
+  --accent: 210 100% 50%;
+  --accent-foreground: 220 35% 6%;
+
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 220 25% 15%;
+  --input: 220 25% 12%;
+  --ring: 45 93% 47%;
+
+  /* Custom Sharden colors */
+  --electric-blue: 210 100% 50%;
+  --deep-blue: 220 70% 20%;
+  --bright-yellow: 45 93% 47%;
+  --yellow-glow: 45 100% 60%;
+  --dark-surface: 220 30% 8%;
+  --glass-surface: 220 25% 12%;
+
+  /* Gradients */
+  --gradient-primary: linear-gradient(
+    135deg,
+    hsl(var(--electric-blue)),
+    hsl(var(--bright-yellow))
+  );
+  --gradient-background: linear-gradient(
+    135deg,
+    hsl(var(--background)) 0%,
+    hsl(var(--deep-blue)) 50%,
+    hsl(var(--background)) 100%
+  );
+  --gradient-glass: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
+
+  /* Shadows and glows */
+  --shadow-electric: 0 0 40px hsl(var(--electric-blue) / 0.3);
+  --shadow-yellow: 0 0 30px hsl(var(--bright-yellow) / 0.2);
+  --glow-blue: 0 0 60px hsl(var(--electric-blue) / 0.4);
+  --glow-yellow: 0 0 50px hsl(var(--bright-yellow) / 0.3);
+
+  --radius: 0.5rem;
+
+  --sidebar-background: 0 0% 98%;
+
+  --sidebar-foreground: 240 5.3% 26.1%;
+
+  --sidebar-primary: 240 5.9% 10%;
+
+  --sidebar-primary-foreground: 0 0% 98%;
+
+  --sidebar-accent: 240 4.8% 95.9%;
+
+  --sidebar-accent-foreground: 240 5.9% 10%;
+
+  --sidebar-border: 220 13% 91%;
+
+  --sidebar-ring: 217.2 91.2% 59.8%;
+}
+
+.dark {
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+
+  --primary: 210 40% 98%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 212.7 26.8% 83.9%;
+  --sidebar-background: 240 5.9% 10%;
+  --sidebar-foreground: 240 4.8% 95.9%;
+  --sidebar-primary: 224.3 76.3% 48%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 240 3.7% 15.9%;
+  --sidebar-accent-foreground: 240 4.8% 95.9%;
+  --sidebar-border: 240 3.7% 15.9%;
+  --sidebar-ring: 217.2 91.2% 59.8%;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
