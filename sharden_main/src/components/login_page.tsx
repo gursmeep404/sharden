@@ -90,7 +90,7 @@ export default function LoginPage() {
           <h2 className='text-3xl font-bold bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] bg-clip-text text-transparent mb-2'>
             SHARDEN
           </h2>
-          <p className='text-[hsl(220,10%,60%)] text-sm'>Secure File Transfer</p>
+          <p className='text-[hsl(220,10%,60%)] text-sm'>Login</p>
           <div className='w-12 h-1 bg-gradient-to-r from-[hsl(210,100%,50%)] to-[hsl(45,93%,47%)] rounded-full mx-auto mt-3'></div>
         </div>
         <form className='space-y-6' onSubmit={handleSubmit}>
