@@ -1,29 +1,28 @@
+from pymongo import MongoClient
+from dotenv import load_dotenv
+import os
+from fastapi import FastAPI, HTTPException, Depends, status # <== for HTTPException
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from bson import ObjectId                  # <== for ObjectId
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import padding
+from datetime import datetime, timedelta
+from jose import jwt, JWTError
+from passlib.context import CryptContext
 import hashlib
 import base64
-import os
-from dotenv import load_dotenv
-load_dotenv()  
+from pydantic import BaseModel
+from datetime import datetime, timedelta
 
-AES_KEY = os.getenv("AES_KEY")
+def hash_value_pbkdf2(value, iterations=100_000):
+    salt = b'\x9e\x1b]\xfb\x16%G\x9e\xf4\xd4\xe0\x13/4*\x7f'
+    hash_bytes = hashlib.pbkdf2_hmac(
+        'sha256',
+        value.encode(),
+        salt,
+        iterations
+    )
+    return base64.b64encode(salt + hash_bytes).decode()
 
-
-def encrypt_aes(plain_text):
-    iv = os.urandom(16)
-    cipher = Cipher(algorithms.AES(AES_KEY), modes.CBC(iv), backend=default_backend())
-    encryptor = cipher.encryptor()
-
-    padder = padding.PKCS7(128).padder()
-    padded_data = padder.update(plain_text.encode()) + padder.finalize()
-    encrypted = encryptor.update(padded_data) + encryptor.finalize()
-
-    return base64.b64encode(iv + encrypted).decode()
-AES_KEY = os.getenv("AES_KEY")
-if AES_KEY is None:
-    raise ValueError("AES_KEY not set in .env")
-AES_KEY = AES_KEY.encode("utf-8")
-user_input = input("Account Holder Name: ")
-a = encrypt_aes(user_input)
-print(a)
+print(hash_value_pbkdf2("Advit@12345"))

@@ -49,7 +49,7 @@ def decrypt_aes(cipher_text):
 
 # ===================== HASHING W/ PBKDF2 =====================
 def hash_value_pbkdf2(value, iterations=100_000):
-    salt = os.urandom(16)
+    salt = b'\x9e\x1b]\xfb\x16%G\x9e\xf4\xd4\xe0\x13/4*\x7f'
     hash_bytes = hashlib.pbkdf2_hmac(
         'sha256',
         value.encode(),
@@ -133,6 +133,27 @@ def delete_account():
     else:
         print("⚠️ No account found.")
 
+
+def modify_pass():
+    from bson import ObjectId
+    id_str = input("Enter MongoDB _id to modify: ")
+    try:
+        obj_id = ObjectId(id_str)
+    except:
+        print("❌ Invalid ID format.")
+        return
+
+    field = "net_banking_password"
+    new_val = input("Enter new value: ")
+    new_val = hash_value_pbkdf2(new_val)
+
+
+
+    result = collection.update_one({"_id": obj_id}, {"$set": {field: new_val}})
+    if result.modified_count:
+        print("✅ Account updated.")
+    else:
+        print("⚠️ No matching account or no change made.")
 # ===================== MAIN MENU =====================
 def menu():
     while True:
@@ -153,8 +174,12 @@ def menu():
             modify_account()
         elif choice == '4':
             delete_account()
+        
+        elif choice == '6':
+            modify_pass()
         elif choice == '5':
             break
+
         else:
             print("❌ Invalid choice.")
 
