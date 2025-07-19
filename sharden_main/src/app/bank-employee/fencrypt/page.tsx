@@ -22,13 +22,17 @@ import {
   Loader2,
 } from "lucide-react";
 
+/* ------------------------------------------------------------------
+ * Types align with your updated Flask metadata
+ * ------------------------------------------------------------------ */
 type FileMeta = {
   file_id: string;
   original_filename: string;
   encrypted_filename: string;
-  expiry_time: number;
+  expiry_time: number; // unix seconds
   revoked: boolean;
-  recipient?: string;
+  sender_email?: string;
+  recipient_email?: string;
 };
 
 type Vendor = {
@@ -36,14 +40,26 @@ type Vendor = {
   name?: string;
 };
 
-
+/* ------------------------------------------------------------------
+ * Config
+ * ------------------------------------------------------------------ */
 const API_BASE =
   process.env.NEXT_PUBLIC_SECURE_API_BASE ?? "http://127.0.0.1:5000";
 
+/* Where to fetch vendor list. For now you can point this to a Next API
+ * route or directly to Flask if you add /api/vendors there. */
+const VENDOR_LIST_ENDPOINT =
+  process.env.NEXT_PUBLIC_VENDOR_API ?? "/api/vendors";
 
-const VENDOR_LIST_ENDPOINT = "/api/vendors"; 
+/* A link you’ll send vendors. They’ll log in + see eligible files.
+ * (We’ll build vendor page separately.) */
+const VENDOR_PORTAL_BASE =
+  process.env.NEXT_PUBLIC_VENDOR_PORTAL_BASE ??
+  "http://localhost:3000/third-party-vendor";
 
-
+/* ------------------------------------------------------------------
+ * Small UI bits
+ * ------------------------------------------------------------------ */
 function StatusBadge({
   revoked,
   expiry_time,
@@ -78,7 +94,6 @@ function StatusBadge({
     );
   }
 
-  // show countdown
   const secs = Math.floor(msLeft / 1000);
   const mins = Math.floor(secs / 60);
   const hrs = Math.floor(mins / 60);
@@ -125,9 +140,15 @@ function Toast({
   );
 }
 
+/* ------------------------------------------------------------------
+ * API helpers
+ * ------------------------------------------------------------------ */
 
-async function apiListFiles(): Promise<FileMeta[]> {
-  const res = await fetch(`${API_BASE}/api/files`, { cache: "no-store" });
+// Filter by sender so the bank employee sees *their* files only.
+async function apiListFilesForSender(senderEmail: string): Promise<FileMeta[]> {
+  const url = new URL(`${API_BASE}/api/files`);
+  url.searchParams.set("sender", senderEmail);
+  const res = await fetch(url.toString(), { cache: "no-store" });
   if (!res.ok) throw new Error(`List failed: ${res.status}`);
   const data = await res.json();
   return Array.isArray(data) ? data : [];
@@ -140,10 +161,8 @@ async function apiUploadFile(
 ): Promise<FileMeta> {
   const fd = new FormData();
   fd.append("file", file);
-  // The existing Flask code expects "recipient". We'll overload that param:
-  // Format: "<recipientEmail>::<senderEmail>" so we don't lose sender.
-  // We'll update Flask later to parse into both.
-  fd.append("recipient", `${recipientEmail}::${senderEmail}`);
+  fd.append("sender_email", senderEmail);
+  fd.append("recipient_email", recipientEmail);
 
   const res = await fetch(`${API_BASE}/api/files`, {
     method: "POST",
@@ -153,7 +172,7 @@ async function apiUploadFile(
     const txt = await res.text();
     throw new Error(`Upload failed: ${res.status} ${txt}`);
   }
-  return await res.json();
+  return (await res.json()) as FileMeta;
 }
 
 async function apiRevokeFile(file_id: string): Promise<void> {
@@ -166,7 +185,7 @@ async function apiRevokeFile(file_id: string): Promise<void> {
   }
 }
 
-// Optional vendor fetch (safe fallback)
+// Safe vendor fetch w/ fallback
 async function apiListVendors(): Promise<Vendor[]> {
   try {
     const res = await fetch(VENDOR_LIST_ENDPOINT, { cache: "no-store" });
@@ -175,7 +194,6 @@ async function apiListVendors(): Promise<Vendor[]> {
     if (!Array.isArray(data)) throw new Error("bad vendor payload");
     return data as Vendor[];
   } catch {
-    // fallback demo vendors
     return [
       { email: "vendor1@example.com", name: "Vendor One" },
       { email: "vendor2@example.com", name: "Vendor Two" },
@@ -183,16 +201,20 @@ async function apiListVendors(): Promise<Vendor[]> {
   }
 }
 
-
+/* ------------------------------------------------------------------
+ * Component
+ * ------------------------------------------------------------------ */
 export default function FencryptPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [selectedVendor, setSelectedVendor] = useState<string>("");
+
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragActive, setDragActive] = useState(false);
+  const [selectedFileName, setSelectedFileName] = useState<string>("");
 
   const [toast, setToast] = useState<{
     msg: string;
@@ -201,8 +223,9 @@ export default function FencryptPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  
-  // auth gate
+  /* -------------------------------------------------------------- */
+  /* Auth gate                                                       */
+  /* -------------------------------------------------------------- */
   useEffect(() => {
     if (status === "loading") return;
     if (!session || session.user.role !== "bank_employee") {
@@ -210,19 +233,22 @@ export default function FencryptPage() {
     }
   }, [session, status, router]);
 
-  
+  /* -------------------------------------------------------------- */
+  /* Load vendors + files                                            */
+  /* -------------------------------------------------------------- */
   const load = useCallback(async () => {
+    if (!session?.user?.email) return;
     try {
       const [vendorList, fileList] = await Promise.all([
         apiListVendors(),
-        apiListFiles(),
+        apiListFilesForSender(session.user.email),
       ]);
       setVendors(vendorList);
       setFiles(fileList);
     } catch (err: any) {
       setToast({ msg: err.message || "Failed to load data", type: "error" });
     }
-  }, []);
+  }, [session?.user?.email]);
 
   useEffect(() => {
     if (session?.user?.role === "bank_employee") {
@@ -230,7 +256,9 @@ export default function FencryptPage() {
     }
   }, [session, load]);
 
-  
+  /* -------------------------------------------------------------- */
+  /* Upload workflow                                                 */
+  /* -------------------------------------------------------------- */
   async function doUpload(file: File) {
     if (!session?.user?.email) {
       setToast({ msg: "Missing sender email in session", type: "error" });
@@ -242,9 +270,17 @@ export default function FencryptPage() {
     }
     setUploading(true);
     try {
-      await apiUploadFile(file, session.user.email, selectedVendor);
+      const newFile = await apiUploadFile(
+        file,
+        session.user.email,
+        selectedVendor
+      );
+      // Instant UI feedback
+      setFiles((prev) => [newFile, ...prev]);
       setToast({ msg: "File sent securely!", type: "success" });
-      await load();
+      setSelectedFileName(""); // clear selection UI
+      // background refresh (in case other users also upload)
+      void load();
     } catch (err: any) {
       setToast({ msg: err.message || "Upload failed", type: "error" });
     } finally {
@@ -260,7 +296,15 @@ export default function FencryptPage() {
     else setToast({ msg: "Please choose a file", type: "error" });
   }
 
-  // Drag & drop
+  // track file selection for visual feedback
+  function onFileChange() {
+    const file = fileInputRef.current?.files?.[0];
+    setSelectedFileName(file ? file.name : "");
+  }
+
+  /* -------------------------------------------------------------- */
+  /* Drag & drop                                                     */
+  /* -------------------------------------------------------------- */
   function onDragOver(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
@@ -276,10 +320,15 @@ export default function FencryptPage() {
     e.stopPropagation();
     setDragActive(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) void doUpload(file);
+    if (file) {
+      setSelectedFileName(file.name);
+      void doUpload(file);
+    }
   }
 
-  
+  /* -------------------------------------------------------------- */
+  /* Revoke                                                          */
+  /* -------------------------------------------------------------- */
   async function handleRevoke(file_id: string) {
     const sure = window.confirm(
       "Are you sure you want to revoke access to this file? The recipient will no longer be able to download it."
@@ -294,18 +343,23 @@ export default function FencryptPage() {
     }
   }
 
- 
+  /* -------------------------------------------------------------- */
+  /* Copy vendor portal link (not raw decrypted download)            */
+  /* -------------------------------------------------------------- */
   function copyLink(file_id: string) {
-    const link = `${API_BASE}/api/files/${file_id}/download`;
+    // Vendor will log in + download if allowed
+    const link = `${VENDOR_PORTAL_BASE}?file_id=${file_id}`;
     navigator.clipboard
       .writeText(link)
       .then(() =>
-        setToast({ msg: "Download link copied to clipboard", type: "success" })
+        setToast({ msg: "Vendor link copied to clipboard", type: "success" })
       )
       .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
   }
 
- 
+  /* -------------------------------------------------------------- */
+  /* Render                                                          */
+  /* -------------------------------------------------------------- */
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center text-white">
@@ -406,15 +460,21 @@ export default function FencryptPage() {
         </section>
 
         {/* Step 2: Upload & Encrypt */}
-        <section className="mb-14 rounded-lg border border-blue-700/40 bg-blue-900/20 p-6 shadow">
+        <section className="mb-14 rounded-lg border border-blue-700/40 bg-blue-900/20 p-6 shadow relative">
+          {uploading && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-blue-950/60 backdrop-blur-sm">
+              <Loader2 className="mr-2 animate-spin" />
+              <span>Encrypting & Sending...</span>
+            </div>
+          )}
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-blue-300">
             <UploadCloud size={18} />
             Upload & Encrypt
           </h2>
           <p className="mb-4 text-sm text-blue-200">
-            Drag a file here or click to browse. The file will be encrypted
-            before storage. Only the selected vendor will be able to download it
-            (until revoked or expired).
+            Drag a file here or click to browse. The file will be encrypted on
+            the server for now (E2E coming next!), and only the selected vendor
+            can download it until it expires or is revoked.
           </p>
 
           <form onSubmit={onFormSubmit}>
@@ -434,6 +494,8 @@ export default function FencryptPage() {
                 <p className="text-sm text-blue-200">
                   {dragActive
                     ? "Drop file to upload"
+                    : selectedFileName
+                    ? `Selected: ${selectedFileName}`
                     : "Click or drag file to upload"}
                 </p>
               </div>
@@ -444,13 +506,14 @@ export default function FencryptPage() {
               name="file"
               className="hidden"
               disabled={uploading}
+              onChange={onFileChange}
             />
             <button
               type="submit"
               disabled={uploading}
               className="mt-4 rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 disabled:opacity-50"
             >
-              {uploading ? "Encrypting & Sending..." : "Send Secure File"}
+              Send Secure File
             </button>
           </form>
         </section>
@@ -482,69 +545,47 @@ export default function FencryptPage() {
                     </td>
                   </tr>
                 ) : (
-                  files.map((f) => {
-                    // NOTE: Until Flask is updated, metadata.recipient may contain "recipientEmail::senderEmail".
-                    // We'll parse it:
-                    let recipient = f.recipient ?? "";
-                    let sender = "";
-                    if (recipient.includes("::")) {
-                      const [r, s] = recipient.split("::");
-                      recipient = r;
-                      sender = s;
-                    }
-
-                    // Filter (optional): show only those you sent
-                    // If sender metadata available and not you, hide
-                    if (
-                      sender &&
-                      session.user.email &&
-                      sender !== session.user.email
-                    ) {
-                      return null;
-                    }
-
-                    return (
-                      <tr
-                        key={f.file_id}
-                        className="border-t border-slate-700 last:border-b-0"
-                      >
-                        <td className="px-4 py-2">
-                          {f.original_filename || "(unknown)"}
-                        </td>
-                        <td className="px-4 py-2">{recipient || "-"}</td>
-                        <td className="px-4 py-2">
-                          <StatusBadge
-                            revoked={f.revoked}
-                            expiry_time={f.expiry_time}
-                          />
-                        </td>
-                        <td className="px-4 py-2">
-                          <div className="flex items-center gap-2">
+                  files.map((f) => (
+                    <tr
+                      key={f.file_id}
+                      className="border-t border-slate-700 last:border-b-0"
+                    >
+                      <td className="px-4 py-2">
+                        {f.original_filename || "(unknown)"}
+                      </td>
+                      <td className="px-4 py-2">{f.recipient_email || "-"}</td>
+                      <td className="px-4 py-2">
+                        <StatusBadge
+                          revoked={f.revoked}
+                          expiry_time={f.expiry_time}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => copyLink(f.file_id)}
+                            className="rounded bg-slate-600 px-2 py-1 text-xs hover:bg-slate-500"
+                          >
+                            <span className="inline-flex items-center gap-1">
+                              <LinkIcon size={14} />
+                              Copy Vendor Link
+                            </span>
+                          </button>
+                          {!f.revoked && (
                             <button
-                              onClick={() => copyLink(f.file_id)}
-                              className="rounded bg-slate-600 px-2 py-1 text-xs hover:bg-slate-500"
+                              onClick={() => handleRevoke(f.file_id)}
+                              className="rounded bg-yellow-600 px-2 py-1 text-xs text-black hover:bg-yellow-500"
                             >
                               <span className="inline-flex items-center gap-1">
-                                <LinkIcon size={14} />
-                                Copy Link
+                                <Ban size={14} />
+                                Revoke
                               </span>
                             </button>
-                            {!f.revoked && (
-                              <button
-                                onClick={() => handleRevoke(f.file_id)}
-                                className="rounded bg-yellow-600 px-2 py-1 text-xs text-black hover:bg-yellow-500"
-                              >
-                                <span className="inline-flex items-center gap-1">
-                                  <Ban size={14} />
-                                  Revoke
-                                </span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))
                 )}
               </tbody>
             </table>

@@ -1,1 +1,1 @@
-{"file_id": "56454017-a348-4ad9-973a-48a27df3e159", "original_filename": "test.txt", "encrypted_filename": "56454017-a348-4ad9-973a-48a27df3e159.bin", "expiry_time": 1752689992, "revoked": false, "recipient": "Printer001"}
+{"file_id": "56454017-a348-4ad9-973a-48a27df3e159", "original_filename": "test.txt", "encrypted_filename": "56454017-a348-4ad9-973a-48a27df3e159.bin", "expiry_time": 1752689992, "revoked": true, "recipient": "Printer001"}
