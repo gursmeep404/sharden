@@ -32,6 +32,7 @@ model BankData {
   userId        String   @map("user_id") @db.Uuid
   name          String
   email         String
+  password      String
   accountNumber String   @unique @map("account_number") @db.VarChar(20)
   panNumber     String   @unique @map("pan_number") @db.VarChar(10)
   cardNumber    String   @unique @map("card_number") @db.VarChar(19)
