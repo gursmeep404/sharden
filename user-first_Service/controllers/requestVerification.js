@@ -47,7 +47,7 @@ const requestverification = async (req, res) => {
       data: {
         vendor_name,
         vendor_email,
-        vendor_password, // Note: In production, hash the password before storing
+        vendor_password,
         vendor_documentation,
       },
     });
