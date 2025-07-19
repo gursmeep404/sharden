@@ -2,3 +2,5 @@
 venv/
 myenv/
 /DB_APIS_DB_ACC/.env
+/user-first_Service/.env
+/user-first_Service/node_modules/

@@ -1,5 +1,7 @@
+
 generator client {
   provider = "prisma-client-js"
+  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -27,6 +29,7 @@ model Users {
 
   @@map("users")
 }
+
 model BankData {
   id            Int      @id @default(autoincrement())
   userId        String   @map("user_id") @db.Uuid

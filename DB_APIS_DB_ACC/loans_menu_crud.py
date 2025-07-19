@@ -14,7 +14,7 @@ MONGO_URI = os.getenv("MONGO_URI")
 AES_KEY = os.getenv("AES_KEY").encode()
 client = MongoClient(MONGO_URI)
 db = client[os.getenv("DB_NAME")]
-collection = db[os.getenv("COLLECTION_NAME")]
+collection = db[os.getenv("COLLECTION_NAME_loans")]
 
 # ========== AES ENCRYPTION ==========
 def encrypt_aes(plain_text):
