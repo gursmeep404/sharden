@@ -1,12 +1,6 @@
 "use client";
 
-import React, {
-  useEffect,
-  useState,
-  useCallback,
-  useRef,
-  DragEvent,
-} from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -17,30 +11,27 @@ import {
   Ban,
   ShieldCheck,
   Loader2,
+  KeySquare,
 } from "lucide-react";
+import { decryptFileBrowser } from "@/lib/crypto";
 
-/* ------------------------------------------------------------------
- * Types aligned with Flask metadata
- * ------------------------------------------------------------------ */
+
 type FileMeta = {
   file_id: string;
   original_filename: string;
   encrypted_filename: string;
-  expiry_time: number; // unix secs
+  expiry_time: number;
   revoked: boolean;
   sender_email?: string;
   recipient_email?: string;
+  mime_type?: string;
+  iv_b64?: string;
+  e2e?: boolean;
 };
 
-/* ------------------------------------------------------------------
- * Config
- * ------------------------------------------------------------------ */
 const API_BASE =
   process.env.NEXT_PUBLIC_SECURE_API_BASE ?? "http://127.0.0.1:5000";
 
-/* ------------------------------------------------------------------
- * Small UI bits
- * ------------------------------------------------------------------ */
 function StatusBadge({
   revoked,
   expiry_time,
@@ -116,9 +107,6 @@ function Toast({
   );
 }
 
-/* ------------------------------------------------------------------
- * API helpers
- * ------------------------------------------------------------------ */
 async function apiListFilesForRecipient(
   recipientEmail: string
 ): Promise<FileMeta[]> {
@@ -129,39 +117,45 @@ async function apiListFilesForRecipient(
   const data = await res.json();
   return Array.isArray(data) ? data : [];
 }
-
-async function apiDownloadFile(file_id: string): Promise<Blob> {
-  const res = await fetch(`${API_BASE}/api/files/${file_id}/download`);
+async function apiDownloadCipher(file_id: string): Promise<Blob> {
+  const res = await fetch(`${API_BASE}/api/files/${file_id}/raw`);
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`Download failed: ${res.status} ${txt}`);
+    throw new Error(`Cipher download failed: ${res.status} ${txt}`);
   }
   return await res.blob();
 }
 
-/* ------------------------------------------------------------------
- * Component
- * ------------------------------------------------------------------ */
 export default function ThirdPartyVendorPage() {
   const { data: rawSession, status } = useSession();
-  const session = rawSession as any; // relax typing for hackathon speed
+  const session = rawSession as any;
   const router = useRouter();
   const searchParams = useSearchParams();
-  const linkedFileId = searchParams?.get("file_id") || null;
+  const fileIdFromQuery = searchParams?.get("file_id") || "";
+
+  // parse #k=... from URL fragment (server never sees this)
+  const [keyFromUrl, setKeyFromUrl] = useState<string>("");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hash = window.location.hash; // e.g. #k=BASE64
+    if (hash.startsWith("#k=")) {
+      setKeyFromUrl(decodeURIComponent(hash.slice(3)));
+    }
+  }, []);
 
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [toast, setToast] = useState<{
     msg: string;
     type: "error" | "success";
   } | null>(null);
-  const [highlightId, setHighlightId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [manualKey, setManualKey] = useState<string>("");
 
   // Auth gate
   useEffect(() => {
     if (status === "loading") return;
     if (!session) {
-      router.push("/"); // go sign-in
+      router.push("/");
       return;
     }
     if (session.user.role !== "third_party_vendor") {
@@ -177,19 +171,10 @@ export default function ThirdPartyVendorPage() {
     try {
       const list = await apiListFilesForRecipient(email);
       setFiles(list);
-      // highlight if link points to a specific file (and you own it)
-      if (linkedFileId && list.some((f) => f.file_id === linkedFileId)) {
-        setHighlightId(linkedFileId);
-        // auto-scroll after paint
-        setTimeout(() => {
-          const el = document.getElementById(`file-row-${linkedFileId}`);
-          if (el) el.scrollIntoView({ behavior: "smooth", block: "center" });
-        }, 50);
-      }
     } catch (err: any) {
       setToast({ msg: err.message || "Failed to load files", type: "error" });
     }
-  }, [session?.user?.email, linkedFileId]);
+  }, [session?.user?.email]);
 
   useEffect(() => {
     if (session?.user?.role === "third_party_vendor") {
@@ -197,7 +182,9 @@ export default function ThirdPartyVendorPage() {
     }
   }, [session, load]);
 
-  // Download
+  // Combined key: URL fragment wins, fallback manual input
+  const effectiveKey = keyFromUrl || manualKey.trim();
+
   async function handleDownload(f: FileMeta) {
     if (f.revoked) {
       setToast({ msg: "File revoked by sender", type: "error" });
@@ -208,19 +195,65 @@ export default function ThirdPartyVendorPage() {
       setToast({ msg: "File expired", type: "error" });
       return;
     }
+
+    // If file marked E2E true, require key + iv
+    if (f.e2e) {
+      if (!effectiveKey) {
+        setToast({
+          msg: "Missing decryption key. Paste key or use link with #k=...",
+          type: "error",
+        });
+        return;
+      }
+      if (!f.iv_b64) {
+        setToast({
+          msg: "File metadata missing IV (upload error).",
+          type: "error",
+        });
+        return;
+      }
+    }
+
     setDownloadingId(f.file_id);
     try {
-      const blob = await apiDownloadFile(f.file_id);
-      // Server decrypts before sending (MVP). For E2E, decrypt blob here later.
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = f.original_filename ?? "download.bin";
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      setToast({ msg: "File downloaded", type: "success" });
+      if (f.e2e) {
+        // download ciphertext
+        const cipherBlob = await apiDownloadCipher(f.file_id);
+        // decrypt in browser
+        const plainBlob = await decryptFileBrowser(
+          cipherBlob,
+          effectiveKey,
+          f.iv_b64!,
+          f.mime_type
+        );
+        // download
+        const url = URL.createObjectURL(plainBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.original_filename ?? "download.bin";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setToast({ msg: "File decrypted & downloaded", type: "success" });
+      } else {
+        // legacy server decrypt path (fallback)
+        const res = await fetch(`${API_BASE}/api/files/${f.file_id}/download`);
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(`Download failed: ${res.status} ${txt}`);
+        }
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = f.original_filename ?? "download.bin";
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+        setToast({ msg: "File downloaded", type: "success" });
+      }
     } catch (err: any) {
       setToast({ msg: err.message || "Download failed", type: "error" });
     } finally {
@@ -282,6 +315,28 @@ export default function ThirdPartyVendorPage() {
 
       {/* Main */}
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
+        {/* Key input (if not present in URL) */}
+        {!keyFromUrl && (
+          <section className="mb-8 rounded-lg border border-slate-700 bg-slate-800/50 p-4 shadow">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <KeySquare size={16} />
+              Enter Decryption Key
+            </h2>
+            <p className="mb-2 text-xs text-slate-400">
+              Paste the key provided by your bank partner (base64 string). If
+              you opened a secure link that had <code>#k=...</code>, it’s
+              auto‑filled.
+            </p>
+            <input
+              type="text"
+              placeholder="paste key here"
+              value={manualKey}
+              onChange={(e) => setManualKey(e.target.value.trim())}
+              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </section>
+        )}
+
         <section>
           <h2 className="mb-4 flex items-center gap-2 text-lg font-semibold text-[hsl(45,93%,47%)]">
             <ShieldCheck size={18} />
@@ -309,18 +364,20 @@ export default function ThirdPartyVendorPage() {
                   </tr>
                 ) : (
                   files.map((f) => {
-                    const rowHighlight =
-                      highlightId === f.file_id
-                        ? "bg-blue-900/40 animate-pulse"
-                        : "";
+                    const highlight =
+                      fileIdFromQuery === f.file_id ? "bg-blue-900/40" : "";
                     return (
                       <tr
-                        id={`file-row-${f.file_id}`}
                         key={f.file_id}
-                        className={`border-t border-slate-700 last:border-b-0 ${rowHighlight}`}
+                        className={`border-t border-slate-700 last:border-b-0 ${highlight}`}
                       >
                         <td className="px-4 py-2">
                           {f.original_filename || "(unknown)"}
+                          {f.e2e && (
+                            <span className="ml-2 rounded bg-blue-600/60 px-1.5 py-0.5 text-[10px] uppercase tracking-wide">
+                              E2E
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-2">{f.sender_email || "-"}</td>
                         <td className="px-4 py-2">
@@ -339,14 +396,17 @@ export default function ThirdPartyVendorPage() {
                             onClick={() => handleDownload(f)}
                             className="rounded bg-green-600 px-2 py-1 text-xs hover:bg-green-500 disabled:opacity-40"
                           >
-                            <span className="inline-flex items-center gap-1">
-                              {downloadingId === f.file_id ? (
-                                <Loader2 size={14} className="animate-spin" />
-                              ) : (
+                            {downloadingId === f.file_id ? (
+                              <span className="inline-flex items-center gap-1">
+                                <Loader2 size={14} className="animate-spin" />{" "}
+                                Decrypting...
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1">
                                 <Download size={14} />
-                              )}
-                              Download
-                            </span>
+                                Download
+                              </span>
+                            )}
                           </button>
                         </td>
                       </tr>
@@ -357,8 +417,7 @@ export default function ThirdPartyVendorPage() {
             </table>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            Files are decrypted on the server at download time (MVP). End‑to‑end
-            client decryption coming soon.
+            E2E files decrypt in your browser using a key only you have.
           </p>
         </section>
       </main>

@@ -357,12 +357,11 @@ export default function FencryptPage() {
 
  
   function copyLink(file_id: string, keyBase64?: string) {
-    // If we cached keys per file we could auto include; for now warn if no key.
     const link = keyBase64
-      ? `${VENDOR_PORTAL_BASE}?file_id=${file_id}#k=${encodeURIComponent(
+      ? `${VENDOR_PORTAL_BASE}/decrypt/${file_id}#k=${encodeURIComponent(
           keyBase64
         )}`
-      : `${VENDOR_PORTAL_BASE}?file_id=${file_id}`;
+      : `${VENDOR_PORTAL_BASE}/decrypt/${file_id}`;
     navigator.clipboard
       .writeText(link)
       .then(() =>
@@ -370,6 +369,7 @@ export default function FencryptPage() {
       )
       .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
   }
+
 
 
   if (status === "loading") {

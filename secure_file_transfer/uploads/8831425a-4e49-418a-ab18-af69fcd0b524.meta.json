@@ -1,0 +1,1 @@
+{"file_id": "8831425a-4e49-418a-ab18-af69fcd0b524", "original_filename": "test.txt", "encrypted_filename": "8831425a-4e49-418a-ab18-af69fcd0b524.bin", "expiry_time": 1752912152, "revoked": false, "sender_email": "pshukla_be22@thapar.edu", "recipient_email": "agarg9_be22@thapar.edu", "mime_type": "text/plain", "iv_b64": "CuExjH4T1njLn+Ti", "e2e": true}
