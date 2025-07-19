@@ -4,6 +4,7 @@ from werkzeug.utils import secure_filename
 from utils.crypto import encrypt_file, decrypt_file
 from Crypto.Random import get_random_bytes
 from flask_cors import CORS
+import base64
 
 app = Flask(__name__)
 
@@ -53,47 +54,71 @@ def load_metadata_all():
 def upload_file():
     file = request.files.get('file')
     recipient_email = request.form.get('recipient_email') or request.form.get('recipient')
-    sender_email = request.form.get('sender_email') 
+    sender_email = request.form.get('sender_email')
+    iv_b64 = request.form.get('iv_b64')   # presence => E2E ciphertext uploaded
+    mime_type = request.form.get('mime_type') or 'application/octet-stream'
+    original_filename = request.form.get('original_name')
 
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
+    if not recipient_email:
+        return jsonify({"error": "Missing recipient_email"}), 400
 
     file_id = str(uuid.uuid4())
-    filename = secure_filename(file.filename) or "upload.bin"
-    original_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+    safe_name = secure_filename(original_filename or file.filename or "upload.bin")
+
+    # paths
+    meta_path, enc_path, key_path = _paths_for(file_id)
+
+    if iv_b64:
+        # ----- E2E MODE -----
+        # Uploaded file == ciphertext. Store as-is; don't encrypt on server.
+        file.save(enc_path)
+        # No key file written.
+        expiry_ts = int(time.time() + 300)
+        metadata = {
+            "file_id": file_id,
+            "original_filename": safe_name,
+            "encrypted_filename": os.path.basename(enc_path),
+            "expiry_time": expiry_ts,
+            "revoked": False,
+            "sender_email": sender_email,
+            "recipient_email": recipient_email,
+            "mime_type": mime_type,
+            "iv_b64": iv_b64,
+            "e2e": True,
+        }
+        with open(meta_path, 'w') as mf:
+            json.dump(metadata, mf)
+        log_action("UPLOAD_E2E", file_id, "SUCCESS", f"Sender={sender_email} Recipient={recipient_email}")
+        return jsonify(metadata), 201
+
+    # ----- LEGACY SERVER-SIDE ENCRYPT MODE -----
+    original_path = os.path.join(app.config['UPLOAD_FOLDER'], safe_name)
     file.save(original_path)
-
-    # Encrypt file with one‑time symmetric key
     key = get_random_bytes(16)
-    encrypted = encrypt_file(original_path, key)  
-
-    # Write encrypted blob: nonce|tag|ciphertext
-    enc_name = f"{file_id}.bin"
-    enc_path = os.path.join(app.config['UPLOAD_FOLDER'], enc_name)
+    encrypted = encrypt_file(original_path, key)
     with open(enc_path, 'wb') as f:
         f.write(encrypted['nonce'] + encrypted['tag'] + encrypted['ciphertext'])
-
-    # Persist key 
-    with open(os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.key"), 'wb') as kf:
+    with open(key_path, 'wb') as kf:
         kf.write(key)
-
-    
     expiry_ts = int(time.time() + 300)
     metadata = {
         "file_id": file_id,
-        "original_filename": filename,
-        "encrypted_filename": enc_name,
+        "original_filename": safe_name,
+        "encrypted_filename": os.path.basename(enc_path),
         "expiry_time": expiry_ts,
         "revoked": False,
         "sender_email": sender_email,
         "recipient_email": recipient_email,
+        "mime_type": mime_type,
+        "e2e": False,
     }
-    meta_path = os.path.join(app.config['UPLOAD_FOLDER'], f"{file_id}.meta.json")
     with open(meta_path, 'w') as mf:
         json.dump(metadata, mf)
-
-    log_action("UPLOAD", file_id, "SUCCESS", f"Sender={sender_email} Recipient={recipient_email}")
+    log_action("UPLOAD_LEGACY", file_id, "SUCCESS", f"Sender={sender_email} Recipient={recipient_email}")
     return jsonify(metadata), 201
+
 
 
 @app.route('/api/files', methods=['GET'])
@@ -179,5 +204,5 @@ def get_logs():
 
 
 if __name__ == "__main__":
-    
+
     app.run(host='0.0.0.0', port=5000, debug=True)
