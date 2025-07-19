@@ -16,3 +16,4 @@ timestamp,action,file_id,status,details
 1752906922,UPLOAD,71e3986e-e609-4135-8436-edf534c4b119,SUCCESS,Sender=pshukla_be22@thapar.edu Recipient=agarg9_be22@thapar.edu
 1752906949,DOWNLOAD,71e3986e-e609-4135-8436-edf534c4b119,SUCCESS,
 1752906989,REVOKE,71e3986e-e609-4135-8436-edf534c4b119,SUCCESS,
+1752909319,UPLOAD_E2E,6aad31b4-3cf3-4d3d-9fc6-051e7f6609c9,SUCCESS,Sender=pshukla_be22@thapar.edu Recipient=agarg9_be22@thapar.edu

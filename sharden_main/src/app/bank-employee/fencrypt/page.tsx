@@ -8,6 +8,7 @@ import {
   FormEvent,
   DragEvent,
 } from "react";
+import { encryptFileBrowser } from "@/lib/crypto"; 
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -22,9 +23,6 @@ import {
   Loader2,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------
- * Types align with your updated Flask metadata
- * ------------------------------------------------------------------ */
 type FileMeta = {
   file_id: string;
   original_filename: string;
@@ -40,26 +38,17 @@ type Vendor = {
   name?: string;
 };
 
-/* ------------------------------------------------------------------
- * Config
- * ------------------------------------------------------------------ */
 const API_BASE =
   process.env.NEXT_PUBLIC_SECURE_API_BASE ?? "http://127.0.0.1:5000";
 
-/* Where to fetch vendor list. For now you can point this to a Next API
- * route or directly to Flask if you add /api/vendors there. */
+
 const VENDOR_LIST_ENDPOINT =
   process.env.NEXT_PUBLIC_VENDOR_API ?? "/api/vendors";
 
-/* A link you’ll send vendors. They’ll log in + see eligible files.
- * (We’ll build vendor page separately.) */
 const VENDOR_PORTAL_BASE =
   process.env.NEXT_PUBLIC_VENDOR_PORTAL_BASE ??
   "http://localhost:3000/third-party-vendor";
 
-/* ------------------------------------------------------------------
- * Small UI bits
- * ------------------------------------------------------------------ */
 function StatusBadge({
   revoked,
   expiry_time,
@@ -140,11 +129,6 @@ function Toast({
   );
 }
 
-/* ------------------------------------------------------------------
- * API helpers
- * ------------------------------------------------------------------ */
-
-// Filter by sender so the bank employee sees *their* files only.
 async function apiListFilesForSender(senderEmail: string): Promise<FileMeta[]> {
   const url = new URL(`${API_BASE}/api/files`);
   url.searchParams.set("sender", senderEmail);
@@ -201,9 +185,6 @@ async function apiListVendors(): Promise<Vendor[]> {
   }
 }
 
-/* ------------------------------------------------------------------
- * Component
- * ------------------------------------------------------------------ */
 export default function FencryptPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -213,6 +194,7 @@ export default function FencryptPage() {
 
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [uploading, setUploading] = useState(false);
+  const [fileKeys, setFileKeys] = useState<Record<string, string>>({});
   const [dragActive, setDragActive] = useState(false);
   const [selectedFileName, setSelectedFileName] = useState<string>("");
 
@@ -223,9 +205,8 @@ export default function FencryptPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  /* -------------------------------------------------------------- */
-  /* Auth gate                                                       */
-  /* -------------------------------------------------------------- */
+  
+  // AuthGate
   useEffect(() => {
     if (status === "loading") return;
     if (!session || session.user.role !== "bank_employee") {
@@ -233,9 +214,7 @@ export default function FencryptPage() {
     }
   }, [session, status, router]);
 
-  /* -------------------------------------------------------------- */
-  /* Load vendors + files                                            */
-  /* -------------------------------------------------------------- */
+
   const load = useCallback(async () => {
     if (!session?.user?.email) return;
     try {
@@ -256,9 +235,7 @@ export default function FencryptPage() {
     }
   }, [session, load]);
 
-  /* -------------------------------------------------------------- */
-  /* Upload workflow                                                 */
-  /* -------------------------------------------------------------- */
+  
   async function doUpload(file: File) {
     if (!session?.user?.email) {
       setToast({ msg: "Missing sender email in session", type: "error" });
@@ -270,17 +247,55 @@ export default function FencryptPage() {
     }
     setUploading(true);
     try {
-      const newFile = await apiUploadFile(
-        file,
-        session.user.email,
-        selectedVendor
+      // --- E2E encrypt in browser ---
+      const { ciphertextBlob, keyBase64, ivBase64, mimeType } =
+        await encryptFileBrowser(file);
+
+      // Build form data for E2E
+      const fd = new FormData();
+      // ciphertext file
+      fd.append(
+        "file",
+        new File([ciphertextBlob], file.name + ".enc", {
+          type: "application/octet-stream",
+        })
       );
-      // Instant UI feedback
+      fd.append("sender_email", session.user.email);
+      fd.append("recipient_email", selectedVendor);
+      fd.append("original_name", file.name);
+      fd.append("mime_type", mimeType);
+      fd.append("iv_b64", ivBase64);
+      fd.append("e2e", "1");
+
+      const res = await fetch(`${API_BASE}/api/files`, {
+        method: "POST",
+        body: fd,
+      });
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(`Upload failed: ${res.status} ${txt}`);
+      }
+      const newFile = (await res.json()) as FileMeta;
+
+      // Build vendor link with key in fragment (server never sees it)
+      const vendorLink = `${VENDOR_PORTAL_BASE}?file_id=${
+        newFile.file_id
+      }#k=${encodeURIComponent(keyBase64)}`;
+
+      // Instant UI
       setFiles((prev) => [newFile, ...prev]);
-      setToast({ msg: "File sent securely!", type: "success" });
-      setSelectedFileName(""); // clear selection UI
-      // background refresh (in case other users also upload)
-      void load();
+      setFileKeys((prev) => ({ ...prev, [newFile.file_id]: keyBase64 }));
+      setToast({ msg: "File sent securely! Link copied.", type: "success" });
+
+      // auto-copy vendor link to clipboard (handy in demo)
+      try {
+        await navigator.clipboard.writeText(vendorLink);
+      } catch {
+        /* ignore */
+      }
+
+      setSelectedFileName("");
+      void load(); // refresh in background
     } catch (err: any) {
       setToast({ msg: err.message || "Upload failed", type: "error" });
     } finally {
@@ -288,6 +303,7 @@ export default function FencryptPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
+
 
   function onFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -302,9 +318,7 @@ export default function FencryptPage() {
     setSelectedFileName(file ? file.name : "");
   }
 
-  /* -------------------------------------------------------------- */
-  /* Drag & drop                                                     */
-  /* -------------------------------------------------------------- */
+  // Drag and drop
   function onDragOver(e: DragEvent<HTMLDivElement>) {
     e.preventDefault();
     e.stopPropagation();
@@ -326,9 +340,7 @@ export default function FencryptPage() {
     }
   }
 
-  /* -------------------------------------------------------------- */
-  /* Revoke                                                          */
-  /* -------------------------------------------------------------- */
+  // Revoke
   async function handleRevoke(file_id: string) {
     const sure = window.confirm(
       "Are you sure you want to revoke access to this file? The recipient will no longer be able to download it."
@@ -343,12 +355,14 @@ export default function FencryptPage() {
     }
   }
 
-  /* -------------------------------------------------------------- */
-  /* Copy vendor portal link (not raw decrypted download)            */
-  /* -------------------------------------------------------------- */
-  function copyLink(file_id: string) {
-    // Vendor will log in + download if allowed
-    const link = `${VENDOR_PORTAL_BASE}?file_id=${file_id}`;
+ 
+  function copyLink(file_id: string, keyBase64?: string) {
+    // If we cached keys per file we could auto include; for now warn if no key.
+    const link = keyBase64
+      ? `${VENDOR_PORTAL_BASE}?file_id=${file_id}#k=${encodeURIComponent(
+          keyBase64
+        )}`
+      : `${VENDOR_PORTAL_BASE}?file_id=${file_id}`;
     navigator.clipboard
       .writeText(link)
       .then(() =>
@@ -357,9 +371,7 @@ export default function FencryptPage() {
       .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
   }
 
-  /* -------------------------------------------------------------- */
-  /* Render                                                          */
-  /* -------------------------------------------------------------- */
+
   if (status === "loading") {
     return (
       <div className="min-h-screen flex items-center justify-center text-white">
@@ -563,7 +575,9 @@ export default function FencryptPage() {
                       <td className="px-4 py-2">
                         <div className="flex items-center gap-2">
                           <button
-                            onClick={() => copyLink(f.file_id)}
+                            onClick={() =>
+                              copyLink(f.file_id, fileKeys[f.file_id])
+                            }
                             className="rounded bg-slate-600 px-2 py-1 text-xs hover:bg-slate-500"
                           >
                             <span className="inline-flex items-center gap-1">
