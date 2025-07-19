@@ -356,19 +356,19 @@ export default function FencryptPage() {
   }
 
  
-  function copyLink(file_id: string, keyBase64?: string) {
-    const link = keyBase64
-      ? `${VENDOR_PORTAL_BASE}/decrypt/${file_id}#k=${encodeURIComponent(
-          keyBase64
-        )}`
-      : `${VENDOR_PORTAL_BASE}/decrypt/${file_id}`;
-    navigator.clipboard
-      .writeText(link)
-      .then(() =>
-        setToast({ msg: "Vendor link copied to clipboard", type: "success" })
-      )
-      .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
-  }
+ function copyLink(file_id: string, keyBase64?: string) {
+   const link = keyBase64
+     ? `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}#k=${encodeURIComponent(
+         keyBase64
+       )}`
+     : `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}`;
+   navigator.clipboard
+     .writeText(link)
+     .then(() =>
+       setToast({ msg: "Vendor link copied to clipboard", type: "success" })
+     )
+     .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
+ }
 
 
 
