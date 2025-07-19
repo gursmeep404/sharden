@@ -1,51 +1,96 @@
-export async function encryptFile(file: File) {
+
+
+function bufToB64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+function b64ToBuf(b64: string): ArrayBuffer {
+  const binary = atob(b64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i);
+  }
+  return bytes.buffer;
+}
+
+
+export async function encryptFileBrowser(file: File) {
+  // Generate 256-bit AES-GCM key
   const key = await window.crypto.subtle.generateKey(
     { name: "AES-GCM", length: 256 },
     true,
     ["encrypt", "decrypt"]
   );
 
+  // 96-bit IV
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
+
+  // Read file into memory
   const plaintext = await file.arrayBuffer();
-  const ciphertext = await window.crypto.subtle.encrypt(
+
+  // Encrypt
+  const ciphertextBuf = await window.crypto.subtle.encrypt(
     { name: "AES-GCM", iv },
     key,
     plaintext
   );
 
-  // Export key to send to vendor
+  // Export key (raw bytes) to base64
   const rawKey = await window.crypto.subtle.exportKey("raw", key);
-  const keyBase64 = btoa(String.fromCharCode(...new Uint8Array(rawKey)));
+  const keyBase64 = bufToB64(rawKey);
+  const ivBase64 = bufToB64(iv.buffer);
+
+  // Ciphertext Blob
+  const ciphertextBlob = new Blob([ciphertextBuf], {
+    type: "application/octet-stream",
+  });
 
   return {
-    ciphertext: new Blob([ciphertext]),
+    ciphertextBlob,
     keyBase64,
-    iv: btoa(String.fromCharCode(...iv)),
+    ivBase64,
+    mimeType: file.type || "application/octet-stream",
+    originalSize: plaintext.byteLength,
   };
 }
 
-export async function decryptFile(
+/**
+ * Decrypt ciphertext Blob using AES-GCM in browser.
+ * keyBase64 and ivBase64 must match what was used to encrypt.
+ * Returns a Blob (mimeType optional).
+ */
+export async function decryptFileBrowser(
   cipherBlob: Blob,
   keyBase64: string,
-  ivBase64: string
-) {
-  const rawKey = Uint8Array.from(atob(keyBase64), (c) => c.charCodeAt(0));
+  ivBase64: string,
+  mimeType?: string
+): Promise<Blob> {
+  const rawKeyBuf = b64ToBuf(keyBase64);
   const key = await window.crypto.subtle.importKey(
     "raw",
-    rawKey,
+    rawKeyBuf,
     { name: "AES-GCM" },
     true,
     ["decrypt"]
   );
 
-  const iv = Uint8Array.from(atob(ivBase64), (c) => c.charCodeAt(0));
+  const ivBuf = b64ToBuf(ivBase64);
+  const iv = new Uint8Array(ivBuf);
+
   const ciphertext = await cipherBlob.arrayBuffer();
 
-  const decrypted = await window.crypto.subtle.decrypt(
+  const plaintextBuf = await window.crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
     key,
     ciphertext
   );
 
-  return new Blob([decrypted]);
+  return new Blob([plaintextBuf], {
+    type: mimeType || "application/octet-stream",
+  });
 }
