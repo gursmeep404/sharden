@@ -191,6 +191,36 @@ def revoke_file(file_id):
     return jsonify({"message": "File revoked", "file_id": file_id}), 200
 
 
+@app.route('/api/files/<file_id>/raw', methods=['GET'])
+def download_raw_ciphertext(file_id):
+    meta_path, enc_path, _ = _paths_for(file_id)
+    if not os.path.exists(meta_path):
+        return jsonify({"error": "Metadata not found"}), 404
+    if not os.path.exists(enc_path):
+        return jsonify({"error": "Encrypted file missing"}), 404
+
+    with open(meta_path, 'r') as mf:
+        metadata = json.load(mf)
+
+    now = time.time()
+    if now > metadata["expiry_time"]:
+        log_action("RAW", file_id, "FAILED", "Expired")
+        return jsonify({"error": "Access denied: File expired"}), 403
+    if metadata.get("revoked", False):
+        log_action("RAW", file_id, "FAILED", "Revoked")
+        return jsonify({"error": "Access denied: File revoked"}), 403
+
+    # we send encrypted .bin as attachment
+    log_action("RAW", file_id, "SUCCESS")
+    return send_file(
+        enc_path,
+        as_attachment=True,
+        download_name=metadata.get("encrypted_filename", f"{file_id}.bin"),
+        mimetype="application/octet-stream"
+    )
+
+
+
 @app.route('/api/logs', methods=['GET'])
 def get_logs():
     if not os.path.exists(AUDIT_LOG):
