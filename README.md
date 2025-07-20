@@ -99,24 +99,24 @@ cd sharden
 
 You can use PostgreSQL in two ways:
 
-- Locally on your machine
+**1. Locally on your machine**
 
-Install PostgreSQL: [https://www.postgresql.org/download/]
+- Install PostgreSQL: [https://www.postgresql.org/download/]
 
-Start the PostgreSQL server and create a new database (e.g., myapp_db)
+- Start the PostgreSQL server and create a new database (e.g., myapp_db)
 
-Get your local connection URL (format: `postgresql://user:password@localhost:5432/myapp_db`)
+- Get your local connection URL (format: `postgresql://user:password@localhost:5432/myapp_db`)
 
-- Using NeonDB [https://neon.com/]
+**2. Using NeonDB** [https://neon.com/]
 
-Sign up and create a project
+- Sign up and create a project
 
-Copy your connection string from the Neon dashboard
+- Copy your connection string from the Neon dashboard
 
 Example format:
 `postgresql://user:password@ep-...neondb.io/db_name?sslmode=require`
 
-📄 Configure .env
+- Configure .env
 Add your connection string to the .env file:
 
 `DATABASE_URL="your_postgresql_connection_string_here"`
