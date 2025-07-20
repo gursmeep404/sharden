@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bank Balance Checker</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 10px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            text-align: center;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 2rem;
+            font-weight: 600;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+            text-align: left;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #555;
+            font-weight: 500;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e1e1e1;
+            border-radius: 5px;
+            font-size: 1rem;
+            transition: border-color 0.3s ease;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .error {
+            color: #e74c3c;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #fdf2f2;
+            border-radius: 5px;
+            border-left: 4px solid #e74c3c;
+        }
+
+        .success {
+            color: #27ae60;
+            margin-top: 1rem;
+            padding: 0.5rem;
+            background: #f0f9f4;
+            border-radius: 5px;
+            border-left: 4px solid #27ae60;
+        }
+
+        .balance-display {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 5px;
+            margin-top: 1rem;
+        }
+
+        .balance-amount {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #27ae60;
+            margin-bottom: 0.5rem;
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            margin-top: 1rem;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Admin Login Screen -->
+        <div id="adminLogin">
+            <h1>Admin Login</h1>
+            <form id="adminLoginForm">
+                <div class="form-group">
+                    <label for="adminUserId">User ID:</label>
+                    <input type="text" id="adminUserId" required>
+                </div>
+                <div class="form-group">
+                    <label for="adminPassword">Password:</label>
+                    <input type="password" id="adminPassword" required>
+                </div>
+                <button type="submit">Login</button>
+            </form>
+            <div id="adminLoginError" class="error hidden"></div>
+        </div>
+
+        <!-- Dashboard Screen -->
+        <div id="dashboard" class="hidden">
+            <h1>Admin Dashboard</h1>
+            <p>Welcome, Admin!</p>
+            <button id="checkBalanceBtn">Check Balance</button>
+            <button id="logoutBtn" class="logout-btn">Logout</button>
+        </div>
+
+        <!-- Bank Login Screen -->
+        <div id="bankLogin" class="hidden">
+            <h1>Bank Account Access</h1>
+            <form id="bankLoginForm">
+                <div class="form-group">
+                    <label for="bankUserId">Bank User ID:</label>
+                    <input type="text" id="bankUserId" required>
+                </div>
+                <div class="form-group">
+                    <label for="bankPassword">Bank Password:</label>
+                    <input type="password" id="bankPassword" required>
+                </div>
+                <button type="submit" id="bankLoginSubmit">
+                    <span id="bankLoginText">Get Balance</span>
+                </button>
+            </form>
+            <button id="backToDashboard" class="logout-btn">Back to Dashboard</button>
+            <div id="bankLoginError" class="error hidden"></div>
+            <div id="balanceResult" class="hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let currentToken = null;
+        let currentBankUserId = null;
+
+        // DOM elements
+        const adminLogin = document.getElementById('adminLogin');
+        const dashboard = document.getElementById('dashboard');
+        const bankLogin = document.getElementById('bankLogin');
+        const adminLoginForm = document.getElementById('adminLoginForm');
+        const bankLoginForm = document.getElementById('bankLoginForm');
+        const adminLoginError = document.getElementById('adminLoginError');
+        const bankLoginError = document.getElementById('bankLoginError');
+        const balanceResult = document.getElementById('balanceResult');
+        const bankLoginSubmit = document.getElementById('bankLoginSubmit');
+        const bankLoginText = document.getElementById('bankLoginText');
+
+        // Utility functions
+        function showScreen(screen) {
+            adminLogin.classList.add('hidden');
+            dashboard.classList.add('hidden');
+            bankLogin.classList.add('hidden');
+            screen.classList.remove('hidden');
+        }
+
+        function showError(element, message) {
+            element.textContent = message;
+            element.classList.remove('hidden');
+        }
+
+        function hideError(element) {
+            element.classList.add('hidden');
+        }
+
+        function setLoading(button, textElement, isLoading) {
+            if (isLoading) {
+                button.disabled = true;
+                textElement.innerHTML = '<span class="loading"></span>Loading...';
+            } else {
+                button.disabled = false;
+                textElement.textContent = 'Get Balance';
+            }
+        }
+
+        // Admin login handler
+        adminLoginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            hideError(adminLoginError);
+
+            const userId = document.getElementById('adminUserId').value;
+            const password = document.getElementById('adminPassword').value;
+
+            if (userId === 'admin' && password === '12345') {
+                showScreen(dashboard);
+            } else {
+                showError(adminLoginError, 'Invalid credentials. Please use "admin" and "12345"');
+            }
+        });
+
+        // Check balance button handler
+        document.getElementById('checkBalanceBtn').addEventListener('click', function() {
+            showScreen(bankLogin);
+            hideError(bankLoginError);
+            balanceResult.classList.add('hidden');
+        });
+
+        // Back to dashboard handler
+        document.getElementById('backToDashboard').addEventListener('click', function() {
+            showScreen(dashboard);
+            bankLoginForm.reset();
+            hideError(bankLoginError);
+            balanceResult.classList.add('hidden');
+            currentToken = null;
+            currentBankUserId = null;
+        });
+
+        // Logout handler
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            showScreen(adminLogin);
+            adminLoginForm.reset();
+            bankLoginForm.reset();
+            hideError(adminLoginError);
+            hideError(bankLoginError);
+            balanceResult.classList.add('hidden');
+            currentToken = null;
+            currentBankUserId = null;
+        });
+
+        // Bank login and balance check handler
+        bankLoginForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            hideError(bankLoginError);
+            balanceResult.classList.add('hidden');
+
+            const bankUserId = document.getElementById('bankUserId').value;
+            const bankPassword = document.getElementById('bankPassword').value;
+
+            setLoading(bankLoginSubmit, bankLoginText, true);
+
+            try {
+                // Step 1: Get session token
+                const formData = new FormData();
+                formData.append('username', bankUserId);
+                formData.append('password', bankPassword);
+                formData.append('client_id', 'trusted-client-id');
+                formData.append('client_secret', 'super-secret');
+
+                const tokenResponse = await fetch('http://127.0.0.1:8000/token', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!tokenResponse.ok) {
+                    throw new Error('Invalid bank credentials or server error');
+                }
+
+                const tokenData = await tokenResponse.json();
+                currentToken = tokenData.token || tokenData.access_token || tokenData.sessionToken;
+                currentBankUserId = bankUserId;
+
+                if (!currentToken) {
+                    throw new Error('No token received from server');
+                }
+
+                // Step 2: Get account balance
+                const balanceResponse = await fetch(`http://127.0.0.1:8000/accounts/${bankUserId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Bearer ${currentToken}`,
+                        'Content-Type': 'application/json',
+                    }
+                });
+
+                if (!balanceResponse.ok) {
+                    throw new Error('Failed to fetch account balance');
+                }
+
+                const balanceData = await balanceResponse.json();
+                
+                // Display balance
+                balanceResult.innerHTML = `
+                    <div class="balance-display">
+                        <div class="balance-amount">$${balanceData.balance || balanceData.amount || 'N/A'}</div>
+                        <div>Account Balance for User: ${bankUserId}</div>
+                    </div>
+                `;
+                balanceResult.classList.remove('hidden');
+
+            } catch (error) {
+                console.error('Error:', error);
+                showError(bankLoginError, error.message);
+            } finally {
+                setLoading(bankLoginSubmit, bankLoginText, false);
+            }
+        });
+    </script>
+</body>
+</html>

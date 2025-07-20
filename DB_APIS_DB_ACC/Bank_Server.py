@@ -138,11 +138,9 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 120
 clients_db = {
     "trusted-client-id": {
         "client_secret": "super-secret",
-        "vendor_id": "1A"
     },
     "test-client": {
         "client_secret": "test-secret",
-        "vendor_id": "TEST"
     }
 }
 
@@ -244,7 +242,9 @@ async def login(form_data: OAuth2PasswordRequestFormWithClient = Depends()):
         "vendor_id": form_data.client_id,
         "user_id": user_id,
         "token": access_token,
-        "created_at": datetime.utcnow()
+        "created_at": datetime.utcnow(),
+        "expires_at": datetime.utcnow()+timedelta(120),
+        "manual_expire": "0"
     }
     sessions_collection.insert_one(session)
 
