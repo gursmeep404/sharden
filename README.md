@@ -63,4 +63,22 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 - **Rate Limiting & Anti-DDoS** mechanisms to ensure service availability and resilience.
 
 
+## Technical Stack
+
+### **Frontend**
+- **Next.js** – For server-side rendering and routing.
+- **React** – Component-based UI for dynamic and interactive user interfaces.
+- **TypeScript** – Ensures type safety and maintainable code for the frontend.
+
+---
+
+### **Backend**
+- **Node.js (API Backend)** – Handles secure API endpoints, authentication, token management, and rate limiting for data transfer.
+- **Flask (File Transfer Backend)** – Powers secure file upload/download with AES encryption and decryption flows.
+
+---
+
+### **Database**
+- **PostgreSQL** – Stores user credentials, session tokens, vendor details, file metadata (excluding encryption keys), and logs for audit and monitoring.
+
 
