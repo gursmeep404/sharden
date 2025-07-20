@@ -88,13 +88,51 @@ model vendor_requests {
 }
 
 model verified_vendors {
-  id              BigInt    @id @default(autoincrement())
-  vendor_name     String    @db.VarChar(255)
-  vendor_email    String    @unique @db.VarChar(255)
-  vendor_password String    @db.VarChar(255)
-  vendor_token    String    @unique @db.VarChar(255)
-  created_at      DateTime  @default(now()) @db.Timestamp(6)
-  updated_at      DateTime? @default(now()) @db.Timestamp(6)
+  id                 BigInt               @id @default(autoincrement())
+  vendor_name        String               @db.VarChar(255)
+  vendor_email       String               @unique @db.VarChar(255)
+  vendor_password    String               @db.VarChar(255)
+  vendor_token       String               @unique @db.VarChar(255)
+  created_at         DateTime             @default(now()) @db.Timestamp(6)
+  updated_at         DateTime?            @default(now()) @db.Timestamp(6)
+  sessions           sessions[]
+  vendor_permissions vendor_permissions[]
 
-  @@map ("verified_vendors")
+  @@map("verified_vendors")
+}
+
+model access_logs {
+  id            BigInt   @id @default(autoincrement())
+  session_id    String   @db.VarChar(255)
+  user_email    String   @db.VarChar(255)
+  vendor_name   String   @db.VarChar(255)
+  facility_used String   @db.VarChar(100)
+  access_time   DateTime @default(now()) @db.Timestamp(6)
+  status        String   @default("success") @db.VarChar(20)
+}
+
+model sessions {
+  id               BigInt           @id @default(autoincrement())
+  session_id       String           @unique @db.VarChar(255)
+  user_id          String           @db.Uuid
+  vendor_id        BigInt
+  session_token    String           @db.VarChar(500)
+  expires_at       DateTime         @db.Timestamp(6)
+  is_active        Boolean          @default(true)
+  revoked_by       String?          @db.VarChar(255)
+  revoked_at       DateTime?        @db.Timestamp(6)
+  created_at       DateTime         @default(now()) @db.Timestamp(6)
+  verified_vendors verified_vendors @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_sessions_vendor_id")
+}
+
+model vendor_permissions {
+  id               BigInt           @id @default(autoincrement())
+  vendor_id        BigInt
+  endpoint_name    String           @db.VarChar(100)
+  has_access       Boolean          @default(false)
+  created_at       DateTime         @default(now()) @db.Timestamp(6)
+  updated_at       DateTime?        @default(now()) @db.Timestamp(6)
+  verified_vendors verified_vendors @relation(fields: [vendor_id], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_vendor_permissions_vendor_id")
+
+  @@unique([vendor_id, endpoint_name], map: "uk_vendor_permissions_vendor_endpoint")
 }
