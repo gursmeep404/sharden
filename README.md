@@ -28,8 +28,8 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
   All API interactions, tokens, and data transfer events are logged in the database for complete auditability.
 - **Rate Limiting:**  
   Built-in rate limiting protects the platform against DDoS attacks or malicious API calls.
-- **Mailer Alerts:**  
-  Users are instantly notified via email whenever their data is accessed or transferred.
+- **Alerts:**  
+  Users are instantly notified whenever their data is accessed or transferred.
 
 
 ### **3. Secure File Transfer (AES Encryption)**
@@ -46,8 +46,6 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
   Every file transfer has an expiry time. Expired files are completely inaccessible, even with the key.
 - **Revocable Access:**  
   Fintech employees can **revoke file access at any time**, preventing decryption even if the key/link is shared.
-- **Mailer Notifications:**  
-  Users receive alert emails for every file transfer event, adding another layer of transparency and trust.
 
 
 ### **4. Security Highlights**
