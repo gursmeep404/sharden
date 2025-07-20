@@ -17,7 +17,7 @@ export default function UserDashboard() {
   if (status === 'loading') return <div>Loading...</div>;
 
   return (
-    <div className='min-h-screen bg-gray-100'>
+    <div className='min-h-screen bg-gradient-background'>
       {/* Header */}
       <div className='bg-white shadow'>
         <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
@@ -56,7 +56,7 @@ export default function UserDashboard() {
                   View which third-party services have access to your data
                 </p>
                 <button className='mt-4 bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors'>
-                  View Data Sharing
+                  <a href='user/audits'>View Data Sharing</a>
                 </button>
               </div>
             </div>
