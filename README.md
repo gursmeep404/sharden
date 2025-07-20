@@ -102,7 +102,7 @@ cd sharden
 Install PostgreSQL (if not already installed).
 Create a new database--------to be completed by prateek
 
-### **3. Start API Backend **
+### **3. Start API Backend**
 ``` bash
 cd user-first-service
 npm install
@@ -111,7 +111,7 @@ node server.js
 ```
 - This starts the Node.js server for API-based secure data transfer.
 
-### **4. Start the file transfer backend (Flask) **
+### **4. Start the file transfer backend (Flask)**
 ``` bash
 cd secure_file_transfer
 python -m venv venv # You can name your virtual environment whatever you want
