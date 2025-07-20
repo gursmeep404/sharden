@@ -422,7 +422,7 @@ async function handleDownload(f: FileMeta) {
                             ) : (
                               <span className="inline-flex items-center gap-1">
                                 <Download size={14} />
-                                Download
+                                Decrypt
                               </span>
                             )}
                           </button>
