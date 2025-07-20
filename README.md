@@ -101,7 +101,7 @@ cd sharden
 
 You can use PostgreSQL in two ways:
 
-Locally on your machine
+- Locally on your machine
 
 Install PostgreSQL: [https://www.postgresql.org/download/]
 
@@ -109,7 +109,7 @@ Start the PostgreSQL server and create a new database (e.g., myapp_db)
 
 Get your local connection URL (format: `postgresql://user:password@localhost:5432/myapp_db`)
 
-Using NeonDB [https://neon.com/]
+- Using NeonDB [https://neon.com/]
 
 Sign up and create a project
 
@@ -122,12 +122,14 @@ Example format:
 Add your connection string to the .env file:
 
 `DATABASE_URL="your_postgresql_connection_string_here"`
-🧬 Push Schema and Generate Client
-Run the following Prisma commands:
 
-`npx prisma db push        # Push your Prisma schema to the database
+- Push Schema and Generate Client
+  Run the following Prisma commands:
+
+```bash
+npx prisma db push        # Push your Prisma schema to the database
 npx prisma generate       # Generate the Prisma client
-`
+```
 
 ### **3. Start API Backend**
 
