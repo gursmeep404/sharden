@@ -83,6 +83,8 @@ model vendor_requests {
   vendor_documentation String    @db.VarChar(255)
   created_at           DateTime  @default(now()) @db.Timestamp(6)
   updated_at           DateTime? @default(now()) @db.Timestamp(6)
+
+  @@map("vendor_requests")
 }
 
 model verified_vendors {
@@ -93,4 +95,6 @@ model verified_vendors {
   vendor_token    String    @unique @db.VarChar(255)
   created_at      DateTime  @default(now()) @db.Timestamp(6)
   updated_at      DateTime? @default(now()) @db.Timestamp(6)
+
+  @@map ("verified_vendors")
 }
