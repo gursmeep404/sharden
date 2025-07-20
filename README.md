@@ -90,3 +90,38 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 
 ## Installation
 
+Follow these steps to set up and run Sharden locally:
+
+### **1. Clone the Repository**
+```bash
+git clone https://github.com/your-username/sharden.git
+cd sharden
+```
+
+### **2. Set Up the Database**
+Install PostgreSQL (if not already installed).
+Create a new database--------to be completed by prateek
+
+### **3. Start API Backend **
+``` bash
+cd user-first-service
+npm install
+cd routes
+node server.js
+```
+- This starts the Node.js server for API-based secure data transfer.
+
+### **4. Start the file transfer backend (Flask) **
+``` bash
+cd secure_file_transfer
+python -m venv venv # You can name your virtual environment whatever you want
+venv\Scripts\Activate # In Windows
+pip install -r requirements.txt
+python app.py
+```
+### **5. Start the Frontend (Next.js)**
+``` bash
+cd sharden_main
+npm install
+npm run dev
+```
