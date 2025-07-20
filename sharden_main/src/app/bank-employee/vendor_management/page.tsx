@@ -49,7 +49,18 @@ export default function VendorManagement() {
     try {
       setActionLoading(`accept-${vendorId}`);
 
-      const response = await fetch('/api/verifyvendor', {
+      // Make sure we have all required fields
+      if (
+        !vendorData.vendor_name ||
+        !vendorData.vendor_email ||
+        !vendorData.vendor_password
+      ) {
+        console.error('Missing required vendor data fields');
+        alert('Missing required vendor information');
+        return;
+      }
+
+      const response = await fetch('http://localhost:3000/verifyvendor', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -61,13 +72,20 @@ export default function VendorManagement() {
         }),
       });
 
+      const result = await response.json();
+
       if (response.ok) {
+        console.log('Vendor verified successfully:', result);
         await fetchData(); // Refresh data
+        // Optional: Show success message
+        alert('Vendor verified successfully!');
       } else {
-        console.error('Error accepting vendor');
+        console.error('Error accepting vendor:', result.message);
+        alert(`Error: ${result.message}`);
       }
     } catch (error) {
       console.error('Error accepting vendor:', error);
+      alert('Network error occurred while accepting vendor');
     } finally {
       setActionLoading(null);
     }
@@ -93,16 +111,23 @@ export default function VendorManagement() {
     }
   };
 
-  const handleRemoveVerified = async (vendorId) => {
+  const handleRemoveVerified = async (vendorId, vendorEmail) => {
     try {
       setActionLoading(`remove-${vendorId}`);
 
-      const response = await fetch(`/api/verified-vendors/${vendorId}`, {
+      const response = await fetch('http://localhost:3000/deleteverified', {
         method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          verifiedemailtoDelete: vendorEmail,
+        }),
       });
 
       if (response.ok) {
         await fetchData(); // Refresh data
+        console.log(`Vendor ${vendorEmail} removed successfully`);
       } else {
         console.error('Error removing verified vendor');
       }
@@ -221,7 +246,9 @@ export default function VendorManagement() {
                       </td>
                       <td className='px-6 py-4 text-center'>
                         <button
-                          onClick={() => handleRemoveVerified(vendor.id)}
+                          onClick={() =>
+                            handleRemoveVerified(vendor.id, vendor.vendor_email)
+                          }
                           disabled={actionLoading === `remove-${vendor.id}`}
                           className='inline-flex items-center px-3 py-1.5 text-xs font-medium rounded-full bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed'
                         >

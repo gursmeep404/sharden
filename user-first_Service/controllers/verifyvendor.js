@@ -63,7 +63,6 @@ const verifyvendor = async (req, res) => {
     };
 
     const vendor_token = jwt.sign(tokenPayload, JWT_SECRET, {
-      expiresIn: '365d', // Token expires in 1 year
       issuer: 'vendor-verification-system',
     });
 
@@ -78,7 +77,6 @@ const verifyvendor = async (req, res) => {
     });
 
     const emailtoDelete = vendor_email;
-
     async function deleteVendorRequest(email) {
       try {
         const DeleteVendor = await prisma.vendor_requests.delete({

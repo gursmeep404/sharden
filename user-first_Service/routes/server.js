@@ -7,6 +7,10 @@ const { getBankData } = require('../controllers/userFirst');
 const { verifyvendor } = require('../controllers/verifyvendor');
 const { getBalance } = require('../controllers/getBalance');
 const { requestverification } = require('../controllers/requestVerification');
+const {
+  deleteRequest,
+  deleteVerifiedRequest,
+} = require('../controllers/deleterequest');
 // Create Express app
 const app = express();
 
@@ -17,9 +21,11 @@ app.use(cors());
 
 // Direct route using controller
 app.get('/bank-data', getBankData);
-// app.post('/verifyvendor', verifyvendor);
+app.post('/verifyvendor', verifyvendor);
 // app.get('/getBalance', getBalance);
 app.post('/reqverification', requestverification);
+app.delete('/deleterequest', deleteRequest);
+app.delete('/deleteverified', deleteVerifiedRequest);
 
 // Health check endpoint
 app.get('/', (req, res) => {
