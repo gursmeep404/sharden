@@ -14,6 +14,7 @@ import hashlib
 import base64
 from pydantic import BaseModel
 from datetime import datetime, timedelta
+from fastapi import Form
 
 from fastapi.middleware.cors import CORSMiddleware
 app = FastAPI()
@@ -134,9 +135,16 @@ SECRET_KEY = "ThisIsA32ByteConstKeyForAES256!!"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 
-
-
-app = FastAPI()
+clients_db = {
+    "trusted-client-id": {
+        "client_secret": "super-secret",
+        "vendor_id": "1A"
+    },
+    "test-client": {
+        "client_secret": "test-secret",
+        "vendor_id": "TEST"
+    }
+}
 
 class Token(BaseModel):
     access_token: str
@@ -166,26 +174,83 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 sessions_collection = db["Sessions"]
+class OAuth2PasswordRequestFormWithClient:
+    def __init__(
+        self,
+        username: str = Form(...),
+        password: str = Form(...),
+        scope: str = Form(""),
+        client_id: str = Form(...),
+        client_secret: str = Form(...)
+    ):
+        self.username = username
+        self.password = password
+        self.scope = scope
+        self.client_id = client_id
+        self.client_secret = client_secret
 
 # Token endpoint
-@app.post("/token", response_model=Token)
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    user_id = form_data.username
-    password = form_data.password
+@app.post("/token")
+async def login(form_data: OAuth2PasswordRequestFormWithClient = Depends()):
+    # Validate client credentials
+    #if form_data.client_id != "expected_id" or form_data.client_secret != "expected_secret":
+      #  raise HTTPException(status_code=401, detail="Invalid client credentials")
+    # Validate client credentials
 
-    authenticated_user_id = await authenticate_user(user_id, password)
-    if not authenticated_user_id:
-        raise HTTPException(status_code=401, detail="Incorrect ID or password")
+    '''if not client or client["client_secret"] != form_data.client_secret:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid client credentials",
+            headers={"WWW-Authenticate": "Bearer"}
+        )'''
+    """OAuth2 token endpoint"""
+    # Debug logging - remove in production
+    print(f"DEBUG: Received client_id: '{form_data.client_id}'")
+    print(f"DEBUG: Received client_secret: '{form_data.client_secret}'")
+    print(f"DEBUG: Available clients: {list(clients_db.keys())}")
+    
+    # Validate client credentials
+    client = clients_db.get(form_data.client_id)
+    print(f"DEBUG: Found client: {client}")
+    
+    if not client:
+        print(f"DEBUG: Client '{form_data.client_id}' not found in database")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Client '{form_data.client_id}' not found",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    if client["client_secret"] != form_data.client_secret:
+        print(f"DEBUG: Secret mismatch. Expected: '{client['client_secret']}', Got: '{form_data.client_secret}'")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Client secret mismatch",
+            headers={"WWW-Authenticate": "Bearer"}
+        )
+    
+    print("DEBUG: Client authentication successful")
 
-    access_token = create_access_token(data={"sub": authenticated_user_id})
-    sessions_collection.insert_one({
-        "user_id": str(user_id),
-        "vendor_id": str("1"),
+    # Validate user
+    user_id = await authenticate_user(form_data.username, form_data.password)
+    if not user_id:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+    # Create token
+    access_token = create_access_token({"sub": user_id})
+
+    # Store in Sessions collection
+    session = {
+        "vendor_id": form_data.client_id,
+        "user_id": user_id,
         "token": access_token,
-        "created_at": datetime.utcnow(),
-        "expires_at": datetime.utcnow() + timedelta(minutes=120)
-    })
+        "created_at": datetime.utcnow()
+    }
+    sessions_collection.insert_one(session)
+
     return {"access_token": access_token, "token_type": "bearer"}
+
+
 
 
 # Protected route example
@@ -230,3 +295,5 @@ async def get_account(id: str, current_user: str = Depends(get_current_user)):
 
     decrypted_balance = decrypt_aes(account["Balance"])
     return {"balance": decrypted_balance}
+
+
