@@ -194,7 +194,7 @@ app.get('/sessions', async (req, res) => {
         },
       },
       include: {
-        vendor: {
+        verified_vendors: {
           select: {
             vendor_name: true,
             vendor_email: true,
@@ -221,7 +221,7 @@ app.get('/sessions', async (req, res) => {
         return {
           sessionId: session.session_id,
           user: user || null,
-          vendor: session.vendor,
+          vendor: session.verified_vendors,
           createdAt: session.created_at,
           expiresAt: session.expires_at,
           isActive: session.is_active,
