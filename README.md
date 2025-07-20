@@ -2,7 +2,6 @@
 
 Sharden is a fintech-based secure data transfer platform designed to enable financial institutions and fintech companies to exchange sensitive data seamlessly over APIs and through encrypted file transfers. It has been built with end-to-end encryption, role-based access control, and real-time monitoring which ensures confidentiality, integrity, and compliance with industry standards while providing a developer-friendly API-first architecture for effortless integration.
 
-
 ## Table of Contents
 
 - [Features](#features)
@@ -10,16 +9,16 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 - [Architecture](#architecture)
 - [Installation](#installation)
 
-
 ## Features
 
 ### **1. Multi-Role Authentication & Access Control**
+
 - **Separate Logins:** Supports three distinct roles — `User`, `Bank Employee (Fintech Employee)`, and `Third-Party Vendor` — each with dedicated access and permissions.
 - **Secure Session Management:** User and vendor sessions last 24 hours by default when fintech company shares data of user with vendor and can be revoked by the bank at any time for enhanced security.
 - **Role-Based Data Flow:** Each role has specific access to data and transfer services, ensuring that no unauthorized entity can view or tamper with information.
 
-
 ### **2. Secure Data Transfer via APIs**
+
 - **Vendor Onboarding with Verification:**  
   New vendors must submit a registration form and get verified by the bank before receiving access credentials and a unique API token.
 - **Token-Based Authentication:**  
@@ -31,8 +30,8 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 - **Mailer Alerts:**  
   Users are instantly notified via email whenever their data is accessed or transferred.
 
-
 ### **3. Secure File Transfer (AES Encryption)**
+
 - **Client-Side AES Encryption:**  
   Files are encrypted in the browser using AES before being uploaded, ensuring no plaintext file ever reaches the server.
 - **Ephemeral Keys:**  
@@ -49,30 +48,29 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 - **Mailer Notifications:**  
   Users receive alert emails for every file transfer event, adding another layer of transparency and trust.
 
-
 ### **4. Security Highlights**
+
 - **End-to-End Encryption** with AES for files and secure token-based API communication.
 - **24-Hour Session Management** with instant revocation by the bank.
 - **Detailed Activity Logs** for both API calls and file transfers by storing everything in the database
 - **Rate Limiting & Anti-DDoS** mechanisms to ensure service availability and resilience.
 
-
 ## Technical Stack
 
 ### **Frontend**
+
 - **Next.js** – For server-side rendering and routing.
 - **React** – Component-based UI for dynamic and interactive user interfaces.
 - **TypeScript** – Ensures type safety and maintainable code for the frontend.
 
-
 ### **Backend**
+
 - **Node.js (API Backend)** – Handles secure API endpoints, authentication, token management, and rate limiting for data transfer.
 - **Flask (File Transfer Backend)** – Powers secure file upload/download with AES encryption and decryption flows.
 
-
 ### **Database**
-- **PostgreSQL** – Stores user credentials, session tokens, vendor details, file metadata (excluding encryption keys), and logs for audit and monitoring.
 
+- **PostgreSQL** – Stores user credentials, session tokens, vendor details, file metadata (excluding encryption keys), and logs for audit and monitoring.
 
 ## Architecture
 
@@ -86,45 +84,80 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 
 ### **Database structure**
 
-![DB Architecture](./docs/dashboard.jpg)
+![DB Architecture](./docs/database.png)
 
 ## Installation
 
 Follow these steps to set up and run Sharden locally:
 
 ### **1. Clone the Repository**
+
 ```bash
 git clone https://github.com/your-username/sharden.git
 cd sharden
 ```
 
 ### **2. Set Up the Database**
-Install PostgreSQL (if not already installed).
-Create a new database--------to be completed by prateek
+
+You can use PostgreSQL in two ways:
+
+Locally on your machine
+
+Install PostgreSQL: [https://www.postgresql.org/download/]
+
+Start the PostgreSQL server and create a new database (e.g., myapp_db)
+
+Get your local connection URL (format: `postgresql://user:password@localhost:5432/myapp_db`)
+
+Using NeonDB [https://neon.com/]
+
+Sign up and create a project
+
+Copy your connection string from the Neon dashboard
+
+Example format:
+`postgresql://user:password@ep-...neondb.io/db_name?sslmode=require`
+
+📄 Configure .env
+Add your connection string to the .env file:
+
+`DATABASE_URL="your_postgresql_connection_string_here"`
+🧬 Push Schema and Generate Client
+Run the following Prisma commands:
+
+`npx prisma db push        # Push your Prisma schema to the database
+npx prisma generate       # Generate the Prisma client
+`
 
 ### **3. Start API Backend**
-``` bash
+
+```bash
 cd user-first-service
 npm install
 cd routes
 node server.js
 ```
+
 - This starts the Node.js server for API-based secure data transfer.
 
 ### **4. Start the file transfer backend (Flask)**
-``` bash
+
+```bash
 cd secure_file_transfer
 python -m venv venv # You can name your virtual environment whatever you want
 venv\Scripts\Activate # In Windows
 pip install -r requirements.txt
 python app.py
 ```
+
 - This starts the Flask server for secure file encryption/decryption.
 
 ### **5. Start the Frontend (Next.js)**
-``` bash
+
+```bash
 cd sharden_main
 npm install
 npm run dev
 ```
+
 - Access the app in your browser at http://localhost:3000.
