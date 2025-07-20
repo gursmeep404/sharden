@@ -113,16 +113,11 @@ You can use PostgreSQL in two ways:
 
 - Copy your connection string from the Neon dashboard
 
-Example format:
-`postgresql://user:password@ep-...neondb.io/db_name?sslmode=require`
+- Example format:`postgresql://user:password@ep-...neondb.io/db_name?sslmode=require`
 
-- Configure .env
-Add your connection string to the .env file:
+- Configure .env wherein you add your connection string to the .env file:`DATABASE_URL="your_postgresql_connection_string_here"`
 
-`DATABASE_URL="your_postgresql_connection_string_here"`
-
-- Push Schema and Generate Client
-  Run the following Prisma commands:
+- Push Schema and Generate Client.Run the following Prisma commands:
 
 ```bash
 npx prisma db push        # Push your Prisma schema to the database
