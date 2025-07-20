@@ -1,4 +1,4 @@
-![Sharden Banner](./docs/sharden-banner.png)
+![Sharden Banner](./docs/sharden-banner2.png)
 
 Sharden is a fintech-based secure data transfer platform designed to enable financial institutions and fintech companies to exchange sensitive data seamlessly over APIs and through encrypted file transfers. It has been built with end-to-end encryption, role-based access control, and real-time monitoring which ensures confidentiality, integrity, and compliance with industry standards while providing a developer-friendly API-first architecture for effortless integration.
 
@@ -119,9 +119,12 @@ venv\Scripts\Activate # In Windows
 pip install -r requirements.txt
 python app.py
 ```
+- This starts the Flask server for secure file encryption/decryption.
+
 ### **5. Start the Frontend (Next.js)**
 ``` bash
 cd sharden_main
 npm install
 npm run dev
 ```
+- Access the app in your browser at http://localhost:3000.
