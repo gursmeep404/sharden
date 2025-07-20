@@ -205,6 +205,36 @@ def get_logs():
     finally:
         db.close()
 
+@app.route("/api/dashboard", methods=["GET"])
+def get_dashboard():
+    db: Session = SessionLocal()
+    try:
+        files = db.query(SecureFile).order_by(SecureFile.created_at.desc()).all()
+        data = []
+        for file in files:
+            data.append({
+                "id": str(file.id),
+                "filename": file.original_filename,
+                "sender_email": file.sender_email,
+                "recipient_email": file.recipient_email,
+                "expiry_time": file.expiry_time.isoformat() if file.expiry_time else None,
+                "revoked": file.revoked,
+                "encrypted_size": file.encrypted_size,
+                "created_at": file.created_at.isoformat() if file.created_at else None,
+                "logs": [
+                    {
+                        "action": log.action,
+                        "status": log.status,
+                        "details": log.details,
+                        "timestamp": log.timestamp.isoformat()
+                    }
+                    for log in file.logs
+                ]
+            })
+        return jsonify({"files": data}), 200
+    finally:
+        db.close()
+
 
 # Main
 if __name__ == "__main__":
