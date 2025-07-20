@@ -8,7 +8,6 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 - [Features](#features)
 - [Technical Stack](#technical-stack)
 - [Architecture](#architecture)
-- [API Endpoints](#api-endpoints)
 - [Installation](#installation)
 
 
@@ -77,13 +76,17 @@ Sharden is a fintech-based secure data transfer platform designed to enable fina
 
 ## Architecture
 
-### `Data transfer via API`
+### **Data transfer via API**
 
+![API Architecture](./docs/api.png)
 
-### `File transfer through encryption`
+### **File transfer through encryption**
 
 ![File Architecture](./docs/file-arch.png)
 
-### `Database structure`
+### **Database structure**
 
+![DB Architecture](./docs/dashboard.jpg)
+
+## Installation
 
