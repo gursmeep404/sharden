@@ -14,13 +14,13 @@ import {
   KeySquare,
 } from "lucide-react";
 import { decryptFileBrowser } from "@/lib/crypto";
+import { parseHashForKeyIv } from "@/lib/urlCrypto";
 
 /* ---------------- Types ---------------- */
 type FileMeta = {
   file_id: string;
   original_filename: string;
-  encrypted_filename: string;
-  expiry_time: number;
+  expiry_time: number; // epoch seconds
   revoked: boolean;
   sender_email?: string;
   recipient_email?: string;
@@ -68,7 +68,7 @@ function StatusBadge({
   const mins = Math.floor(secs / 60);
   const hrs = Math.floor(mins / 60);
   const days = Math.floor(hrs / 24);
-  let label: string;
+  let label = "";
   if (days > 0) label = `${days}d ${hrs % 24}h`;
   else if (hrs > 0) label = `${hrs}h ${mins % 60}m`;
   else if (mins > 0) label = `${mins}m ${secs % 60}s`;
@@ -147,23 +147,22 @@ export default function VendorDecryptPage() {
   const searchParams = useSearchParams();
   const fileIdFromQuery = searchParams?.get("file_id") || "";
 
-  // parse key from #k=... fragment (server never sees it)
-  const [keyFromUrl, setKeyFromUrl] = useState("");
+  // Parse key & iv from hash
+  const [{ key: keyFromUrl, iv: ivFromUrl }, setHashVals] = useState(() => ({
+    key: "",
+    iv: "",
+  }));
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const hash = window.location.hash; // e.g., #k=BASE64
-    if (hash.startsWith("#k=")) {
-      setKeyFromUrl(decodeURIComponent(hash.slice(3)));
-    } else {
-      // Also support generic hash params (#k=...) using URLSearchParams parsing:
-      const h = new URLSearchParams(hash.replace(/^#/, ""));
-      const k = h.get("k");
-      if (k) setKeyFromUrl(decodeURIComponent(k));
-    }
+    setHashVals(parseHashForKeyIv(window.location.hash));
   }, []);
 
+  // Manual entry fallback
   const [manualKey, setManualKey] = useState("");
+  const [manualIv, setManualIv] = useState("");
+
   const effectiveKey = keyFromUrl || manualKey.trim();
+  const effectiveIv = ivFromUrl || manualIv.trim();
 
   const [files, setFiles] = useState<FileMeta[]>([]);
   const [toast, setToast] = useState<{
@@ -204,66 +203,63 @@ export default function VendorDecryptPage() {
   }, [session, load]);
 
   /* ------------ Download / decrypt ------------ */
-  async function handleDownload(f: FileMeta) {
-    if (f.revoked) {
-      setToast({ msg: "File revoked by sender", type: "error" });
-      return;
-    }
-    const expired = f.expiry_time * 1000 < Date.now();
-    if (expired) {
-      setToast({ msg: "File expired", type: "error" });
-      return;
-    }
-
-    setDownloadingId(f.file_id);
-
-    try {
-      if (f.e2e) {
-        if (!effectiveKey) {
-          throw new Error(
-            "Missing decryption key. Paste key or use link with #k=..."
-          );
-        }
-        if (!f.iv_b64) {
-          throw new Error("File metadata missing IV.");
-        }
-
-        const cipherBlob = await apiDownloadCipher(f.file_id);
-        const plainBlob = await decryptFileBrowser(
-          cipherBlob,
-          effectiveKey,
-          f.iv_b64,
-          f.mime_type
-        );
-
-        const url = URL.createObjectURL(plainBlob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = f.original_filename ?? "download.bin";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        setToast({ msg: "File decrypted & downloaded", type: "success" });
-      } else {
-        // Legacy fallback: server decrypts
-        const blob = await apiDownloadLegacy(f.file_id);
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = f.original_filename ?? "download.bin";
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-        setToast({ msg: "File downloaded", type: "success" });
-      }
-    } catch (err: any) {
-      setToast({ msg: err.message || "Download failed", type: "error" });
-    } finally {
-      setDownloadingId(null);
-    }
+async function handleDownload(f: FileMeta) {
+  if (f.revoked) {
+    setToast({ msg: "File revoked by sender", type: "error" });
+    return;
   }
+  const expired = f.expiry_time * 1000 < Date.now();
+  if (expired) {
+    setToast({ msg: "File expired", type: "error" });
+    return;
+  }
+
+  setDownloadingId(f.file_id);
+
+  try {
+    if (f.e2e) {
+      if (!effectiveKey) throw new Error("Missing decryption key.");
+
+      // Use IV from backend if present, otherwise fall back to manual IV
+      const ivToUse = f.iv_b64 || effectiveIv;
+      if (!ivToUse) throw new Error("Missing IV (none in DB or manual input).");
+
+      const cipherBlob = await apiDownloadCipher(f.file_id);
+      const plainBlob = await decryptFileBrowser(
+        cipherBlob,
+        effectiveKey,
+        ivToUse,
+        f.mime_type
+      );
+      const url = URL.createObjectURL(plainBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.original_filename ?? "download.bin";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setToast({ msg: "File decrypted & downloaded", type: "success" });
+    } else {
+      // Legacy fallback: server decrypts
+      const blob = await apiDownloadLegacy(f.file_id);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = f.original_filename ?? "download.bin";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      setToast({ msg: "File downloaded", type: "success" });
+    }
+  } catch (err: any) {
+    setToast({ msg: err.message || "Download failed", type: "error" });
+  } finally {
+    setDownloadingId(null);
+  }
+}
+
 
   /* ------------ Render states ------------ */
   if (status === "loading") {
@@ -317,7 +313,7 @@ export default function VendorDecryptPage() {
 
       {/* Main */}
       <main className="mx-auto max-w-5xl px-4 py-10 sm:px-6 lg:px-8">
-        {/* Key input only if not in URL */}
+        {/* Key/IV input only if not in URL */}
         {!keyFromUrl && (
           <section className="mb-8 rounded-lg border border-slate-700 bg-slate-800/50 p-4 shadow">
             <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -325,14 +321,34 @@ export default function VendorDecryptPage() {
               Enter Decryption Key
             </h2>
             <p className="mb-2 text-xs text-slate-400">
-              Paste the key provided by your bank partner (base64). If your link
-              included <code>#k=...</code>, it would auto‑fill.
+              Paste the decryption key provided by your bank partner (base64).
+              If your link included <code>#k=...</code>, it auto‑fills.
             </p>
             <input
               type="text"
-              placeholder="paste key here"
+              placeholder="key (base64)"
               value={manualKey}
               onChange={(e) => setManualKey(e.target.value.trim())}
+              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500"
+            />
+          </section>
+        )}
+
+        {/* If IV is missing from DB, ask for it */}
+        {!ivFromUrl && files.some((f) => !f.iv_b64) && (
+          <section className="mb-8 rounded-lg border border-slate-700 bg-slate-800/50 p-4 shadow">
+            <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+              <KeySquare size={16} />
+              Enter IV
+            </h2>
+            <p className="mb-2 text-xs text-slate-400">
+              Paste the IV provided by your bank partner (base64).
+            </p>
+            <input
+              type="text"
+              placeholder="iv (base64)"
+              value={manualIv}
+              onChange={(e) => setManualIv(e.target.value.trim())}
               className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500"
             />
           </section>
@@ -419,8 +435,8 @@ export default function VendorDecryptPage() {
             </table>
           </div>
           <p className="mt-2 text-xs text-slate-500">
-            E2E‑protected files stay encrypted on the server. Use your key to
-            decrypt in the browser.
+            E2E‑protected files stay encrypted on the server. Use your key & IV
+            to decrypt in the browser.
           </p>
         </section>
       </main>

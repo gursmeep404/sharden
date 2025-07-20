@@ -8,7 +8,7 @@ import {
   FormEvent,
   DragEvent,
 } from "react";
-import { encryptFileBrowser } from "@/lib/crypto"; 
+import { encryptFileBrowser } from "@/lib/crypto";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
@@ -40,7 +40,6 @@ type Vendor = {
 
 const API_BASE =
   process.env.NEXT_PUBLIC_SECURE_API_BASE ?? "http://127.0.0.1:5000";
-
 
 const VENDOR_LIST_ENDPOINT =
   process.env.NEXT_PUBLIC_VENDOR_API ?? "/api/vendors";
@@ -205,7 +204,6 @@ export default function FencryptPage() {
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  
   // AuthGate
   useEffect(() => {
     if (status === "loading") return;
@@ -213,7 +211,6 @@ export default function FencryptPage() {
       router.push("/unauthorized");
     }
   }, [session, status, router]);
-
 
   const load = useCallback(async () => {
     if (!session?.user?.email) return;
@@ -235,7 +232,6 @@ export default function FencryptPage() {
     }
   }, [session, load]);
 
-  
   async function doUpload(file: File) {
     if (!session?.user?.email) {
       setToast({ msg: "Missing sender email in session", type: "error" });
@@ -278,9 +274,10 @@ export default function FencryptPage() {
       const newFile = (await res.json()) as FileMeta;
 
       // Build vendor link with key in fragment (server never sees it)
-      const vendorLink = `${VENDOR_PORTAL_BASE}?file_id=${
-        newFile.file_id
-      }#k=${encodeURIComponent(keyBase64)}`;
+     const vendorLink = `${VENDOR_PORTAL_BASE}?file_id=${encodeURIComponent(
+       newFile.file_id
+     )}#k=${encodeURIComponent(keyBase64)}`;
+
 
       // Instant UI
       setFiles((prev) => [newFile, ...prev]);
@@ -303,7 +300,6 @@ export default function FencryptPage() {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
-
 
   function onFormSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -355,22 +351,19 @@ export default function FencryptPage() {
     }
   }
 
- 
- function copyLink(file_id: string, keyBase64?: string) {
-   const link = keyBase64
-     ? `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}#k=${encodeURIComponent(
-         keyBase64
-       )}`
-     : `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}`;
-   navigator.clipboard
-     .writeText(link)
-     .then(() =>
-       setToast({ msg: "Vendor link copied to clipboard", type: "success" })
-     )
-     .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
- }
-
-
+  function copyLink(file_id: string, keyBase64?: string) {
+    const link = keyBase64
+      ? `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}#k=${encodeURIComponent(
+          keyBase64
+        )}`
+      : `${VENDOR_PORTAL_BASE}/decrypt?file_id=${file_id}`;
+    navigator.clipboard
+      .writeText(link)
+      .then(() =>
+        setToast({ msg: "Vendor link copied to clipboard", type: "success" })
+      )
+      .catch(() => setToast({ msg: "Failed to copy link", type: "error" }));
+  }
 
   if (status === "loading") {
     return (

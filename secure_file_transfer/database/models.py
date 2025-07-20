@@ -1,7 +1,7 @@
 from sqlalchemy import Column, String, Boolean, Integer, DateTime, Text, ForeignKey, func
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from database import Base
+from database.database import Base
 from sqlalchemy.orm import relationship
 
 class SecureFile(Base):
@@ -13,7 +13,7 @@ class SecureFile(Base):
     mime_type = Column(String(255))
     sender_email = Column(String(255), nullable=False)
     recipient_email = Column(String(255), nullable=False)
-    expiry_time = Column(DateTime, nullable=False)
+    expiry_time = Column(DateTime(timezone=True), nullable=False)
     revoked = Column(Boolean, default=False)
     e2e = Column(Boolean, default=False)
     iv_b64 = Column(Text)
