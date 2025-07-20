@@ -136,3 +136,14 @@ model vendor_permissions {
 
   @@unique([vendor_id, endpoint_name], map: "uk_vendor_permissions_vendor_endpoint")
 }
+
+model user_dashboard {
+  id           Int       @id @default(autoincrement())
+  email        String    @db.VarChar(255)
+  password     String    @db.VarChar(255)
+  vendor_name  String    @db.VarChar(255)
+  vendor_email String    @db.VarChar(255)
+  medium       String    @db.VarChar(100)
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  updated_at   DateTime? @default(now()) @db.Timestamp(6)
+}

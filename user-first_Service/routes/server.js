@@ -15,6 +15,8 @@ const {
 
 const { authenticateVendor } = require('../controllers/vendorAuthentication');
 
+const { saveTouserTable } = require('../controllers/userDashboard');
+
 const { generateSessionToken } = require('../controllers/generateSessionToken');
 const SESSION_DURATION = 24 * 60 * 60 * 1000;
 // Create Express app
@@ -59,6 +61,19 @@ app.post('/get_balance', authenticateVendor, async (req, res) => {
         success: false,
         error: 'User not found',
       });
+    }
+
+    const save = await saveTouserTable(
+      user.email,
+      user.password,
+      vendor.vendor_name,
+      vendor.vendor_email,
+      'getbalance/api'
+    );
+    if (save.success) {
+      console.log('User saved successfully:', save.data);
+    } else {
+      console.error('Error:', save.error);
     }
 
     // Check for existing active session

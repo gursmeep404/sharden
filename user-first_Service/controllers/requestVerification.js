@@ -57,7 +57,7 @@ const requestverification = async (req, res) => {
       success: true,
       message: 'Vendor verification request submitted successfully',
       data: {
-        id: newRequest.id.tostring(),
+        id: newRequest.id.toString(),
         vendor_name: newRequest.vendor_name,
         vendor_email: newRequest.vendor_email,
         vendor_documentation: newRequest.vendor_documentation,
