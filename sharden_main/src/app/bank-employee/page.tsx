@@ -130,7 +130,7 @@ export default function BankEmployeeDashboard() {
                   Manage third-party vendor access and permissions
                 </p>
                 <button className='mt-4 bg-orange-600 text-white px-4 py-2 rounded hover:bg-orange-700 transition-colors'>
-                  Manage Vendors
+                  <a href='/bank-employee/vendor_management'>Manage Vendors</a>
                 </button>
               </div>
             </div>
